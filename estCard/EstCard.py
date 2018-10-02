@@ -7,9 +7,9 @@ import math
 import threading
 from otcCard.OTCProtocol import *
 from otcCard import *
-from report import report
+from common.report import report
 import logging
-import Queue
+import queue
 
 class Measure_Statistics(object) :
    """
@@ -24,7 +24,7 @@ class Measure_Statistics(object) :
    def arm(self) :
       self._max = 0
       self._min = 2**24 - 1
-      self._avg = 0L
+      self._avg = 0
       self._count = 0
 
    def add(self, sample) :
@@ -64,30 +64,30 @@ class ModeFlags(object) :
        elif val.lower() in [self.one_val.lower(), u'on', u'1'] :
          obj.card._modeFunctions |= self.mask
        else :
-         raise ValueError(u'\'%s\' no es un valor admisible para : %s' % (val, self.name))
+         raise ValueError('\'%s\' no es un valor admisible para : %s' % (val, self.name))
 
      def __get__(self, obj, objtype) :
        return self.one_val if obj.card._modeFunctions & self.mask != 0 else self.cero_val
 
      def __unicode__(self) :
        if self.name[-2:] in [u'ón', u'da'] :
-         msg = u'La '
+         msg = 'La '
        else :
-         msg = u'La función de '
+         msg = 'La función de '
 
        msg += self.name
-       msg += u'esta' if self.one_val[-1] != u'a' else u'es'
+       msg += 'esta' if self.one_val[-1] != 'a' else 'es'
        msg = self.__get__(self, None)
 
        return msg
 
 
-  inputEnable     = Flag(0, u'Entrada de Coordinación', u'Activa', u'Inactiva')
-  outputEnable    = Flag(1, u'Salida de Coordinación', u'Activa', u'Inactiva')
-  expansionEnable = Flag(2, u'Expansión', u'Habilitada', u'Deshabilitada')
-  inputSelection  = Flag(3, u'Selección de Entrada', u'UV', u'LN')
-  feedbackEnable  = Flag(4, u'Realimentación', u'Activa', u'Inactiva')
-  splitEnable     = Flag(5, u'Taps Superpuestos', u'Activa', u'Inactiva')
+  inputEnable     = Flag(0, 'Entrada de Coordinación', 'Activa', 'Inactiva')
+  outputEnable    = Flag(1, 'Salida de Coordinación', 'Activa', 'Inactiva')
+  expansionEnable = Flag(2, 'Expansión', 'Habilitada', 'Deshabilitada')
+  inputSelection  = Flag(3, 'Selección de Entrada', 'UV', 'LN')
+  feedbackEnable  = Flag(4, 'Realimentación', 'Activa', 'Inactiva')
+  splitEnable     = Flag(5, u'Taps Superpuestos', 'Activa', 'Inactiva')
 
   def __init__(self, card) :
     self.card = card
@@ -109,15 +109,15 @@ class ModeFlags(object) :
     n_desc, desc = [(n,d) for n, d in ModeFlags.__dict__.items()
              if (type(d) == ModeFlags.Flag) and (d.name == name)][0]
 
-    str = u'%s : %s' %(name, getattr(self, n_desc))
+    str = '%s : %s' %(name, getattr(self, n_desc))
 
     return str
 
-  def __unicode__(self) :
-    txt = u''
+  def __str__(self) :
+    txt = ''
     for name, desc in ModeFlags.__dict__.items() :
       if type(desc) == ModeFlags.Flag :
-        txt += u'%25s : %s\n' %(desc.name, getattr(self, name))
+        txt += '%25s : %s\n' %(desc.name, getattr(self, name))
 
     return txt
 
@@ -183,10 +183,10 @@ class MeasureTask(threading.Thread) :
 
     self.started = False
 
-    self.queue = Queue.Queue(1000)
+    self.queue = queue.Queue(1000)
 
   def run(self) :
-    self.card.log.debug(u'Measure Thread has started')
+    self.card.log.debug('Measure Thread has started')
     self.started = True
     self.error = None
     err_cnt = 0
@@ -215,7 +215,7 @@ class MeasureTask(threading.Thread) :
 
     except :
        report.consoleSetLevel(logging.ERROR)
-       self.error = u'Fallo inesperado durante la Medición.'
+       self.error = 'Fallo inesperado durante la Medición.'
        self.card.log.critical(u'Fallo inesperado durante la Medición.')
 
     finally :
@@ -224,11 +224,11 @@ class MeasureTask(threading.Thread) :
 
       self.started = False
 
-      self.card.log.debug(u'Measure Thread has stoped')
+      self.card.log.debug('Measure Thread has stoped')
 
       if err_cnt >= 10 :
-        self.error = u'Fallo la Medición, demasiados errores.'
-        self.card.log.critical(u'Fallo la Medición, demasiados errores.')
+        self.error = 'Fallo la Medición, demasiados errores.'
+        self.card.log.critical('Fallo la Medición, demasiados errores.')
 
 
   def stop(self) :
@@ -248,11 +248,11 @@ class CalibrationFactor1V0(object) :
   def __init__(self, input, **kwargs):
     self.input = input
 
-    if (len(kwargs) == 1) and (kwargs.keys()[0] == 'internal') :
-      self._bin = kwargs['internal']
-      return
+    if (len(kwargs) == 1) and ('internal' in kwargs.keys()) :
+        self._bin = kwargs['internal']
+        return
 
-    elif (len(kwargs) == 1) and (kwargs.keys()[0] == 'effective') :
+    elif (len(kwargs) == 1) and ('effective' in kwargs.keys()) :
       if input == 'V' :
         # El factor de amplificación de la entrada V esta dado por la
         # ecuación :
@@ -262,12 +262,12 @@ class CalibrationFactor1V0(object) :
         #    dec = 1 + bin/1641.28
         # y :
         #    bin = 1641.28*(dec - 1)
-        print 'effective = ', kwargs['effective']
+        print('effective = ', kwargs['effective'])
         dec2hex = lambda x :int(x) if x >= 0 else 256 + int(x)
         cal = int(1641.28*(kwargs['effective'] - 1))
-        print 'cal = ', cal
+        print('cal = ', cal)
         self._bin = dec2hex(cal)
-        print 'internal = ', self._bin
+        print('internal = ', self._bin)
         if abs(cal) > 127 :
           raise ValueError('Error - El factor de calibracion (%f) excede el '
                            'rango.' %self._bin)
@@ -280,8 +280,8 @@ class CalibrationFactor1V0(object) :
       return
 
     raise ValueError('CalibrationFactor debe invocarse definiendo solo uno de'
-                     ' los siguientes argumentos explicitos : effective = ...'
-                     ' o internal = ...')
+                      ' los siguientes argumentos explicitos : effective = ...'
+                      ' o internal = ...')
 
   @property
   def effective(self):
@@ -295,15 +295,15 @@ class CalibrationFactor1V0(object) :
   def internal(self):
     return self._bin
 
-  def __unicode__(self):
+  def __str__(self):
     if self.input == 'V' :
-      return u'%6.4f [0x%02X]' %(self.effective, self.internal)
+      return '%6.4f [0x%02X]' %(self.effective, int(self.internal))
     else :
-      return u'%6.4f [0x%04X]' %(self.effective, self.internal)
+      return '%6.4f [0x%04X]' %(self.effective, int(self.internal))
 
 
 def ThresholdSetFactory(card) :
-  u'''
+  '''
   Devuelve el vector de Umbrales del dispositivo card. El vector de umbrales
   es un objeto del tipo (adhoc) ThresholdList cuyos elementos contienen dos
   atributos sup e inf, que representan los umbrales del tap respectivo.
@@ -439,8 +439,8 @@ class EstCard1V0(OTCCard) :
   vrefAdr                = 0xF075
 
   # TODO A estas direcciones de RAM deben asignarse direcciones virtuales :
-  _tapStatus = CardParameter(tapStatusAdr , '<B', u'Tap Activo')
-  _tapsFlags = CardParameter(0xE076, '<B', u'Tap Flags')
+  _tapStatus = CardParameter(tapStatusAdr , '<H', u'Tap Activo')
+  #_tapsFlags = CardParameter(0xE076, '<B', u'Tap Flags')
 
   # Palabra Clave para activar el control remoto :
   PASSWORD  = "CFG_USER"
@@ -450,47 +450,47 @@ class EstCard1V0(OTCCard) :
 
   # Tiempos de Encendido y Apagado :
   _underVoltageTurnOn  = CardParameter(underVoltageTurnOnAdr ,
-                                 '<H', u'Tiempo de Encendido desde Subtensión')
+                                 '<H', 'Tiempo de Encendido desde Subtensión')
   _overVoltageTurnOn   = CardParameter(overVoltageTurnOnAdr  ,
-                               '<H', u'Tiempo de Encendido desde Sobretensión')
+                               '<H', 'Tiempo de Encendido desde Sobretensión')
   _underVoltageTurnOff = CardParameter(underVoltageTurnOffAdr,
-                                     '<H', u'Tiempo de Apagado por Subtensión')
+                                     '<H', 'Tiempo de Apagado por Subtensión')
   _overVoltageTurnOff  = CardParameter(overVoltageTurnOffAdr ,
-                                   '<H', u'Tiempo de Apagado por Sobretensión')
+                                   '<H', 'Tiempo de Apagado por Sobretensión')
 
   # Rango de Taps Operativos :
-  _tapsOpRange = CardParameter(tapsOpRangeAdr, '<B', u'Taps Utilizados')
+  _tapsOpRange = CardParameter(tapsOpRangeAdr, '<B', 'Taps Utilizados')
 
   # Modo de Operación :
-  _modeFunctions = CardParameter(modeFunAdr, '<B', u'Modo de Operación')
+  _modeFunctions = CardParameter(modeFunAdr, '<B', 'Modo de Operación')
 
   # Umbrales de Tensión :
-  _threshold = CardParameter(thresholdsAdr , '<24H' , u'Umbrales de Tensión')
+  _threshold = CardParameter(thresholdsAdr , '<24H' , 'Umbrales de Tensión')
 
   # Información de la tarjeta :
-  _client = CardParameter(clientAdr, '<18s', u'Nombre del Cliente')
-  _date   = CardParameter(dateAdr  , '<10s', u'Fecha de Producción')
-  _serie  = CardParameter(serieAdr , '<7s' , u'Número de Serie')
-  _vin    = CardParameter(vinAdr   , '<7s' , u'Tensión de Entrada')
-  _vout   = CardParameter(voutAdr  , '<7s' , u'Tensión de Salida')
-  _reg    = CardParameter(regAdr   , '<6s' , u'Regulación')
-  _rs     = CardParameter(rsAdr    , '<5s' , u'Resistensia Serie')
-  _rd     = CardParameter(rdAdr    , '<5s' , u'Resistecia de Divisor')
-  _vref   = CardParameter(vrefAdr  , '<6s' , u'Tensión de Referencia')
+  _client = CardParameter(clientAdr, '<18s', 'Nombre del Cliente')
+  _date   = CardParameter(dateAdr  , '<10s', 'Fecha de Producción')
+  _serie  = CardParameter(serieAdr , '<7s' , 'Número de Serie')
+  _vin    = CardParameter(vinAdr   , '<7s' , 'Tensión de Entrada')
+  _vout   = CardParameter(voutAdr  , '<7s' , 'Tensión de Salida')
+  _reg    = CardParameter(regAdr   , '<6s' , 'Regulación')
+  _rs     = CardParameter(rsAdr    , '<5s' , 'Resistensia Serie')
+  _rd     = CardParameter(rdAdr    , '<5s' , 'Resistecia de Divisor')
+  _vref   = CardParameter(vrefAdr  , '<6s' , 'Tensión de Referencia')
 
   # Se define el registro de las mediciones 'instantáneas' :
   _measure_record = CardParameter(measureAdr, '<BHH', u'medición', 'volatil')
 
   # Se define la escala general de las mediciones :
-  _scale = CardParameter(scaleAdr, '<16s', u'Escala de las mediciones')
+  _scale = CardParameter(scaleAdr, '<16s', 'Escala de las mediciones')
   scale = ScaledParameter(_scale,
                            [lambda x: float(x.replace('\x00', ' ')),
                             lambda x : '%9.7f' %x],
                             fmt = r'%1.5f')
 
-  _gainL = CardParameter(gainLAdr, '<H', u'Ganancia Fase L - Neutro')
-  _gainU = CardParameter(gainUAdr, '<H', u'Ganancia Fase U - Neutro')
-  _gainV = CardParameter(gainVAdr, '<B', u'Ganancia Fase V - Neutro')
+  _gainL = CardParameter(gainLAdr, '<H', 'Ganancia Fase L - Neutro')
+  _gainU = CardParameter(gainUAdr, '<H', 'Ganancia Fase U - Neutro')
+  _gainV = CardParameter(gainVAdr, '<B', 'Ganancia Fase V - Neutro')
   gainL  = ScaledParameter(_gainL,
                            [lambda x : math.sqrt(x/EstCard1V0.GAIN_NOM),
                             lambda x : x**2 * EstCard1V0.GAIN_NOM],
@@ -501,9 +501,12 @@ class EstCard1V0(OTCCard) :
 
 
   # Número de Taps Máximo de los modelos de Tarjeta :
-  _TapLimit = {'EstCard 2V3'  : 5 , 'EstCard 5V1'  : 5, 'EstCard 13V1' : 6,
-               'EstCard 23V0' : 10, 'EstCard 2V5-7tap' : 7,  'EstCard 18V0' : 8,
-               'EstCard 24V0' : 6 , 'EstCard 20V1' : 8}
+  _TapLimit = {'EstCard 2V3'  : 5  , 'EstCard 5V1'      : 5 , 'EstCard 13V1' : 6 ,
+               'EstCard 23V0' : 10 , 'EstCard 2V5-7tap' : 7 , 'EstCard 18V0' : 8 ,
+               'EstCard 24V0' : 6  , 'EstCard 20V1'     : 8 , 'EstCard 6V1'  : 5 ,
+               'EstCard 27V0' : 6  , 'EstCard 2V5'      : 10, 'EstCard 2V5x' : 10,
+               'EstCard 21V0' : 4  , 'EstCard 10V0'     : 6 , 'EstCard 22V0' : 10,
+               'EstCard 31V0' : 10 , 'EstCard 23V2'     : 10 }
 
   # Contenido total de la EEPROM :
   _eepromLow  = CardParameter(eepromAdr, '<128B', 'Mitad baja de la EEPROM')
@@ -520,26 +523,6 @@ class EstCard1V0(OTCCard) :
     # TODO Debe verificarse el modelo de hardware  antes de validar isKnown
     self.isKnown = True
 
-    # Se obtiene la identificación del Hardware :
-    try :
-      self.log.debug(u'Obteniendo la identificación del dispositivo remoto ...')
-
-      _hardware_model    = CardParameter(HARDWARE_MODEL_ADR   ,
-                               '<' + str(HARDWARE_MODEL_SIZE)    + 's',
-                                         u'Modelo de Hardware'  ).__get__(self)
-      _hardware_version  = CardParameter(HARDWARE_VERSION_ADR ,
-                               '<' + str(HARDWARE_VERSION_SIZE)  + 's',
-                                         u'Versión de Hardware' ).__get__(self)
-
-    except OTCProtocolError as e:
-            raise OTCProtocolError(u'No se pudo obtener la identificación '
-                                                  u'del dispositivo.', e, self)
-
-    strip = lambda s : s[:-1].strip() if s[-1] == '\x00' else  s.strip()
-
-    self._id[u'hardware_model']   =  strip(_hardware_model)
-    self._id[u'hardware_version'] =  strip(_hardware_version)
-
     # Se asignan los contenedores de los parámetros de cada fase de medición :
     self.LN = Phase(self, 'LN')
     self.UV = Phase(self, 'UV')
@@ -547,7 +530,7 @@ class EstCard1V0(OTCCard) :
     # Se asignan las banderas de los funciones del modo de operación :
     self.modeFlags = ModeFlags(self)
 
-    # Se asigna la clase de la representación interna de los factorees de
+    # Se asigna la clase de la representación interna de los factores de
     # calibración :
     self.calibration_factor = CalibrationFactor1V0
 
@@ -563,33 +546,35 @@ class EstCard1V0(OTCCard) :
   # las funciones get() y set():
   def set(self, name, value) :
     # Los parámetros del dispositivo son de dos tipos ...
-    # ModeFlags :
     try :
-      # CardParameter ...
-      if isAttributeName(name, type(self), CardParameter) :
-        setattr(self,
-                 getAttributeParameter(name, type(self), CardParameter), value)
-      # o ModeFlags.Flag :
-      elif isAttributeName(name, ModeFlags, ModeFlags.Flag) :
+      # ModeFlags :
+      if isAttributeName(name, ModeFlags, ModeFlags.Flag) :
         setattr(self.modeFlags,
                  getAttributeParameter(name, ModeFlags, ModeFlags.Flag), value)
+        return
+      # o CardParameter ...
       else :
-        raise ValueError(u'%s no es un parámetro de EstCard.')
-
+        for cls in type(self).__mro__ :
+          if isAttributeName(name, cls, CardParameter) :
+            setattr(self,getAttributeParameter(name, cls, CardParameter), value)
+            return
     except struct.error as e :
        raise ValueError('Error : El valor no tiene el formato correcto.')
 
+    raise ValueError('%s no es un parámetro de EstCard.' %name)
+
+
 
   def get(self, name) :
-    if isAttributeName(name, type(self), CardParameter) :
-      return getattr(self, getAttributeParameter(name, type(self), CardParameter))
-
-    elif isAttributeName(name,  ModeFlags, ModeFlags.Flag) :
+    if isAttributeName(name,  ModeFlags, ModeFlags.Flag) :
       return getattr(self.modeFlags,
                         getAttributeParameter(name, ModeFlags,  ModeFlags.Flag))
-
     else :
-      raise ValueError(u'%s no es un parámetro de EstCard.')
+      for cls in type(self).__mro__ :
+        if isAttributeName(name, cls, CardParameter) :
+          return getattr(self, getAttributeParameter(name, cls, CardParameter))
+
+    raise ValueError('%s no es un parámetro de EstCard.' %name)
 
 
   @property
@@ -638,7 +623,7 @@ class EstCard1V0(OTCCard) :
 
 
   # Métodos de Arranque y Detención de la captura de la medición :
-  def StartMeasure(self, mode = 'L Cal') :
+  def StartMeasure(self) :
      if not math.isnan(self.scale) :
         # Se inicializa el hilo de ejecución para la medición :
         self.measure = MeasureTask(self)
@@ -648,8 +633,8 @@ class EstCard1V0(OTCCard) :
         self.measure.start()
         while not self.measure.started : continue
      else :
-        raise ValueError(u'Error : No se puede proseguir, '
-                                               u'la escala es inválida (NAN).')
+        raise ValueError('Error : No se puede proseguir, '
+                                               'la escala es inválida (NAN).')
 
   def StopMeasure(self) :
      # Se detiene el hilo de ejecución de la medición :
@@ -668,9 +653,9 @@ class EstCard1V0(OTCCard) :
                              card.get('Ganancia Fase %s - Neutro' %self.input))
 
         rms = self.card.LN.rms if input == 'L' else self.card.UV.rms
-        print 'rms : ', rms
-        print 'ref : ', ref
-        print 'self.old.bin : ', self.old.internal
+        print('rms : ', rms)
+        print('ref : ', ref)
+        print('self.old.bin : ', self.old.internal)
         self.new = self.card.calibration_factor(input, effective = rms/ ref *
                                                              self.old.effective)
         #* \ self.old.internal)
@@ -680,7 +665,7 @@ class EstCard1V0(OTCCard) :
 
 
     if not input in self.inputs_available() :
-      raise ValueError(u'%s no es una entrada admisible.' %input)
+      raise ValueError('%s no es una entrada admisible.' %input)
 
     return Calibrator(self, input, ref)
 
@@ -695,7 +680,7 @@ class EstCard1V0(OTCCard) :
   def close(self) :
     try :
       self.StopMeasure()
-      super(type(self),self).close()
+      super(EstCard1V0, self).close()
 
       self.ExitRemoteMode()
     except OTCProtocolError as e :
@@ -726,28 +711,96 @@ class CalibrationFactor1V2(CalibrationFactor1V0) :
     return math.sqrt(self._bin/EstCard1V0.GAIN_NOM)
 
 
-# Clase para el modelo de la tarjeta EstCard 1V2, se diferencicia de la primera
+# Clase para el modelo de la tarjeta EstCard 1V05, se diferencia de la primera
+# por controlar el modo de medición de las entradas de tensión, durante la
+# calbración.
+class EstCard1V05_T(EstCard1V0) :
+  '''
+  Clase para representar el modelo de la tarjeta EstCard 1V05 :
+  '''
+
+  adresAdr = 0xE09B
+  adres = CardParameter(adresAdr, '<H', 'ADRES SFR')
+
+  testAdr = 0xE5A0
+  testCmd      = CardParameter(testAdr +  0, '<B', 'Test Command')
+
+  testVarAdr0  = CardParameter(testAdr +  1, '<H', 'Test Variable[ 0]')
+  testVarAdr1  = CardParameter(testAdr +  3, '<H', 'Test Variable[ 1]')
+  testVarAdr2  = CardParameter(testAdr +  5, '<H', 'Test Variable[ 2]')
+  testVarAdr3  = CardParameter(testAdr +  7, '<H', 'Test Variable[ 3]')
+  testVarAdr4  = CardParameter(testAdr +  9, '<H', 'Test Variable[ 4]')
+  testVarAdr5  = CardParameter(testAdr + 11, '<H', 'Test Variable[ 5]')
+  testVarAdr6  = CardParameter(testAdr + 13, '<H', 'Test Variable[ 6]')
+  testVarAdr7  = CardParameter(testAdr + 15, '<H', 'Test Variable[ 7]')
+  testVarAdr8  = CardParameter(testAdr + 17, '<H', 'Test Variable[ 8]')
+  testVarAdr9  = CardParameter(testAdr + 19, '<H', 'Test Variable[ 9]')
+  testVarAdr10 = CardParameter(testAdr + 21, '<H', 'Test Variable[10]')
+  testVarAdr11 = CardParameter(testAdr + 23, '<H', 'Test Variable[11]')
+  testVarAdr12 = CardParameter(testAdr + 25, '<H', 'Test Variable[12]')
+  testVarAdr13 = CardParameter(testAdr + 27, '<H', 'Test Variable[13]')
+  testVarAdr14 = CardParameter(testAdr + 29, '<H', 'Test Variable[14]')
+  testVarAdr15 = CardParameter(testAdr + 31, '<H', 'Test Variable[15]')
+
+
+  def __init__(self, card):
+    print('Kernel : 1V05-Test')
+
+    # Se heredan las propiedades básicas de card (puerto serie, reporte e
+    # identificación del software) ...
+    self.dev = card.dev
+    self.log = card.log
+    self._id = card._id
+
+    # Se registra el dispositivo como conocido :
+    # TODO Debe verificarse el modelo de hardware  antes de validar isKnown
+    self.isKnown = True
+
+  def close(self) :
+    try :
+      super(EstCard1V0, self).close()
+    except OTCProtocolError as e :
+      pass
+
+
+# Clase para el modelo de la tarjeta EstCard 1V2, se diferencia de la primera
 # por controlar el modo de medición de las entradas de tensión, durante la
 # calbración.
 class EstCard1V2(EstCard1V0) :
-  u'''
-  Clase para representar el modelo de la tarjeta EstCard 1V0 :
   '''
+  Clase para representar el modelo de la tarjeta EstCard 1V2 :
+  '''
+  scaleAdr = 0xF08A
+
+  _scale = CardParameter(scaleAdr, '<16s', 'Escala de las mediciones')
+  scale = ScaledParameter(_scale,
+                           [lambda x: float(x.replace('\x00', ' ')),
+                            lambda x : '%9.7f' %x],
+                            fmt = r'%1.5f')
 
   # En este modelo la ganancia de la entrada V es de 16 bits.
-  _gainV = CardParameter(EstCard1V0.gainVAdr, '<H',u'Ganancia Fase V - Neutro')
+  _gainV = CardParameter(EstCard1V0.gainVAdr, '<H','Ganancia Fase V - Neutro')
 
   # En este modelo se define el Modo de Medición :
   measureModeAdr = 0xE000
-  _measureMode   = CardParameter(measureModeAdr , '<B', u'Modo de Medición',
+  _measureMode   = CardParameter(measureModeAdr , '<B', 'Modo de Medición',
                                                                      'volatil')
   def __init__(self, card) :
-    super(EstCard1V0, self).__init__(self, card)
+    # super(EstCard1V2, self).__init__(card)
 
     # La versión 1V2 cambia la intrepretación del factor de calibración
     # (particularmente de la entrada V) :
-    self.calibration_factor = CalibrationFactor1V2
+    # self.calibration_factor = CalibrationFactor1V2
 
+    # Se heredan las propiedades básicas de card (puerto serie, reporte e
+    # identificación del software) ...
+    self.dev = card.dev
+    self.log = card.log
+    self._id = card._id
+
+    # Se registra el dispositivo como conocido :
+    # TODO Debe verificarse el modelo de hardware  antes de validar isKnown
+    self.isKnown = True
 
   @property
   def measureMode(self) :
@@ -765,8 +818,8 @@ class EstCard1V2(EstCard1V0) :
       # Medición de trabajo (aka,. L-N y V-N, fuerza U = 0)
       self._measureMode = 2
     else :
-      raise ValueError(u'Asignación del modo de medición '
-                                                   u'con un valor incorrecto.')
+      raise ValueError('Asignación del modo de medición '
+                                                   'con un valor incorrecto.')
 
   def StartMeasure(self, mode) :
     self.measureMode = mode
@@ -791,7 +844,7 @@ class EstCard(OTCCard) :
     # Se crea una instancia de la clase base (OTCCard) con el fin de obtener
     # laidentificación del software :
     card = OTCCard(OTCProtocol(comm_name, throughput_limit),
-                                                  report.getLogger(u'EstCard'))
+                                                  report.getLogger('EstCard'))
 
     # Se identifica el núcleo de software de tarjeta y se devuelve una
     # instancia para la versión correspondiente :
@@ -799,6 +852,13 @@ class EstCard(OTCCard) :
       card.log.debug(u'Núcleo de Software reconocido :%s' %
                                                     card.id['software_kernel'])
       return  EstCard1V0(card)
+
+
+    elif card.id['software_kernel'] == 'CtrEst 1V05_T':
+      card.log.debug(u'Núcleo de Software reconocido :%s' %
+                                                     card.id['software_kernel'])
+
+      return EstCard1V05_T(card)
 
     elif card.id['software_kernel'] == 'CtrEst 1V2' :
       card.log.debug(u'Núcleo de Software reconocido :%s' %
@@ -808,7 +868,7 @@ class EstCard(OTCCard) :
     # Si el núcleo de software no es reconocido se devuelve la instancia de la
     # clase base, nótese hardware_model y hardware_versión han sido previamente
     # definidos durante su creación como 'unknown' :
-    card.log.debug(u'Núcleo de Software no reconocido :%s' %
+    card.log.debug('Núcleo de Software no reconocido :%s' %
                                                     card.id['software_kernel'])
     return card
 

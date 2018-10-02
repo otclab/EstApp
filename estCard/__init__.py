@@ -1,4 +1,4 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from estCard import *
+from estCard.EstCard import *

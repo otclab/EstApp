@@ -41,7 +41,7 @@ def get_intelhex(data) :
   # anteceda al byte (virtual) MSB, nuevamente iniciando desde 0 y hasta 2*N-1
   # donde N es el número de bytes de la EEPROM.
 
-  data_16bit = map(lambda n : data[n/2] if n%2 == 0 else 0, range(2*len(data)))
+  data_16bit = [data[n // 2] if n % 2 == 0 else 0 for n in range(2 * len(data))]
 
   # En el formato IntelHex, Microchip asigna a la EEPROM en un segmento de
   # direcciones lineal y con la dirección EEPROM_ADDRESS.
@@ -49,7 +49,7 @@ def get_intelhex(data) :
 
   # Se inicia los registros IntelHex, definiendo la dirección base del segmento
   # de direcciones lineal :
-  records = [intelhex.UlbaRecord(EEPROM_ADDRESS/65536)]
+  records = [intelhex.UlbaRecord(EEPROM_ADDRESS//65536)]
 
   # Se continua definiendo los registros Intelhex con el contenido de la EEPROM
   # cada 16 bytes :
@@ -122,25 +122,25 @@ def BackupData2str(data, format = None, backup_filename = None) :
         else :
           file.write(txt.encode('utf-8'))
 
-      print u'Se genero el archivo : %s\n' % backup_filename
+      print('Se genero el archivo : %s\n' % backup_filename)
     else :
-      print u'Advertencia : No se específico el archivo de salida.\n'
+      print('Advertencia : No se específico el archivo de salida.\n')
 
   except IOError as e :
     if e.errno == errno.ENOENT :
-      sp = u'Error : No existe el directorio.'
+      sp = 'Error : No existe el directorio.'
 
     elif e.errno == errno.EBADF :
-      sp = u'Error : Número de archivo incorrecto.'
+      sp = 'Error : Número de archivo incorrecto.'
 
     elif e.errno == errno.EEXIST :
-      sp = u'Error : El archivo ya existe.'
+      sp = 'Error : El archivo ya existe.'
 
     elif e.errno == errno.EMFILE :
-      sp = u'Error : Demasiados archivos abiertos.'
+      sp = 'Error : Demasiados archivos abiertos.'
 
     elif e.errno == errno.EFBIG :
-      sp = u'Error : Archivo demasiado grande.'
+      sp = 'Error : Archivo demasiado grande.'
 
     elif e.errno == errno.EROFS :
       sp = u'Error : Sistema de archivos de solo lectura. '
@@ -149,48 +149,82 @@ def BackupData2str(data, format = None, backup_filename = None) :
       sp = u'Error : Permiso de escritura rechazado.'
 
     else :
-      print u'Error : %s.' % e.args[1]
+      print('Error : %s.' % e.args[1])
 
     raise IOError(e.errno, sp)
 
   return txt
 
 def BackupCmd(args, port, throughput_limit) :
-  u"""
-  EstParser : Control Manual de la Activación de los Taps
-  =======================================================
+  """
+  EstApp : Resguardo de la configuración
+  ======================================
 
-  Uso :
-     >> EstParser.py -manual
+  El uso en general es :
+     >> EstApp.py -b [-opcion_de_formato [opcion_Archivo_de_Respaldo]]
 
-  Se conecta con la tarjeta y la pone bajo control remoto e inicia una sesión
-  en la consola interrogando al usuario por el tap a activar. La sesión termina
-  con la entrada 'x'.
+  en particular  :
+     >> EstApp.py -b [-mch | -intelhex | -source | -dump [<backup_filename>] ]
+     >> EstApp.py -b -bin <backup_filename>]
 
-  Los taps se numeran de 1 (mayor relación de transformación) hasta la capacidad
-  de la tarjeta.
-  Para apagar los taps se utiliza el número 0.
+  Lee toda la configuración y la presenta o almacena (opcionalmente) en un archivo.
+  (Es decir todo el contenido de la EEPROM del microcontrolador).
+
+  Las opciones de formato son :
+
+     Tabular (opción -dump)
+        Presentación de forma simple del contenido, de 16 bytes por linea
+        separados por espacios, con una primera columna con la dirección
+        inicial de los bytes de la misma.
+
+     Microchip .mch (opción -mch)
+        Presentación del contenido en forma ordenada un byte por linea.
+
+     IntelHex (opción -intelhex)
+        Presentación del contenido en el formato IntelHex.
+
+     C (opción -source)
+        Genera texto compatible con el compilador C XC8, para definir el
+        contenido de la EEPROM (i.e. la serie de instrucciones EEPROM_DATA
+        que define el contenido respectivo).
+
+     Binario (opción -bin)
+        Genera un archivo binario (con el nombre del argumento adicional),
+        con el contenido.
+
+  El nombre del archivo de resguardo es opcional, en todos los casos excepto
+  en el formato binario para la cual es obligatoria.
+
+  Ejemplos :
+      - Respaldo de la configuración y presentación solo en la consola,
+        en el formato simple :
+          >> EstApp.py  -b  -dump
+
+      - Respaldo de la configuración en el archivo 'respaldo.txt' en el
+        formato INTELHEX :
+          >> EstApp.py  -b  -intelhex  respaldo.txt
+
 """
   card = openCard(port, throughput_limit)
-  arg = [card.eeprom]
-  print 'contents :', arg
-  if len(args) > 4 :
-    print u'Advertencia : Demasiados argumentos.\n'
 
+  if len(args) > 4 :
+    print('Advertencia : Demasiados argumentos.\n')
+
+  arg = [card.eeprom]
   arg.extend(args[2:4])
 
   try :
     backup_txt = BackupData2str(*arg)
   except AttributeError as e :
-    print e.message
+    print(e.message)
     sys.exit(1)
   except IOError as e :
-    print e.args[1]
+    print(e.args[1])
     sys.exit(1)
 
   # Se presenta en la consola el contenido del archivo :
-  print u"Configuración Total : \n"
-  print backup_txt
+  print("Configuración Completa : \n")
+  print(backup_txt)
 
   card.close()
 

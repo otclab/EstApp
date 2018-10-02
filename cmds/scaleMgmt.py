@@ -5,7 +5,7 @@ import sys
 from common import openCard
 
 
-def scaleCmd(args, port, throughput_limit) :
+def ScaleCmd(args, port, throughput_limit) :
   u'''
   EstParser : Escala de Medición de las Tensiones
   ==============================================
@@ -32,21 +32,21 @@ def scaleCmd(args, port, throughput_limit) :
   card = openCard(port, throughput_limit)
 
   if (len(args) < 3) or (args[2] == u'?'):
-    print u'  La Escala de Medición es %1.6f' % card.scale
+    print('  La Escala de Medición es %1.6f' % card.scale)
 
   else:
     try:
       scale = float(args[2])
       # if scale < 0 : raise Exception()
     except :
-      print "<%s> no es un número."
+      print("<%s> no es un número.")
       sys.exit(1)
 
     try:
       card.scale = scale
-      print u"  Se reajusto la Escala de la Medición a %f" % card.scale
+      print("  Se reajusto la Escala de la Medición a %f" % card.scale)
     except ValueError as e:
-      print e.message
+      print(e.message)
       card.close()
       sys.exit(1)
 

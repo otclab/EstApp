@@ -6,21 +6,22 @@ import sys
 import threading
 from time import sleep
 
-import SerialDevice
-import report
+import otcCard.SerialDevice as SerialDevice
+from common.report import report
 
 
 # Caracteres Especiales :
 
-ESCAPE_CHAR = '\x1B'
-EXIT_CHAR   = 'X'
-GET_CHAR    = 'G'
-SET_CHAR    = 'S'
-ACK_CHAR    = '\x17'
-NACK_CHAR   = '\x15'
+ESCAPE_CHAR = b'\x1B'
+EXIT_CHAR   = b'X'
+GET_CHAR    = b'G'
+SET_CHAR    = b'S'
+ACK_CHAR    = b'\x17'
+NACK_CHAR   = b'\x15'
 
 SpecialChar = [ESCAPE_CHAR, EXIT_CHAR, GET_CHAR, SET_CHAR, ACK_CHAR, NACK_CHAR]
-
+EncodedChar = [ESCAPE_CHAR, EXIT_CHAR, GET_CHAR, SET_CHAR]
+DecodedChar = [ESCAPE_CHAR, ACK_CHAR, NACK_CHAR]
 
 # TODO Remover
 # Direcciones de las cadenas de identificación del Modelo/Versión
@@ -79,12 +80,11 @@ class OTCProtocol :
       excepción (del tipo OTCProtocolError).
       """
       try :
-         for d in data :
-            self.log.debug(u'Trasmitiendo : 0x%02X' %ord(d))
-            self.__comm.write(d)
-            if self.throughput_limit :
-               sleep(0.05)
-
+         self.log.debug(u'Trasmitiendo : 0x%s' %data.hex().upper())
+         self.__comm.write(data)
+         if self.throughput_limit :
+            sleep(0.05)
+         
       except SerialDevice.SerialTimeoutException as e:
          raise OTCProtocolError(u'Fallo de Transmisión (timeout).', e, self)
 
@@ -96,11 +96,11 @@ class OTCProtocol :
       self.log.debug('Recibiendo (1 byte) ...')
       byte = self.__comm.read(1)
 
-      if (byte == '') or (byte is None) :
+      if (byte == b'') or (byte is None) :
          raise OTCProtocolError(u'El dispositivo no responde (timeout).',
                                                                     None, self)
 
-      self.log.debug(u'Se recibió : 0x%02X,' %(ord(byte)))
+      self.log.debug(u'Se recibió : 0x%s,' %(byte.hex().upper()))
 
       return byte
 
@@ -144,41 +144,53 @@ class OTCProtocol :
       """
       try :
          self.log.debug(u'Esperando la recepción de %d (data) bytes' % size)
-         data = []
+         data = b''
          for i in range(0, size) :
-            data += self.__rcve()
+            byte = self.__rcve()
 
-            if data[i] == ESCAPE_CHAR :
-               data[i] = chr(ord(self.__rcve()) ^ ord(ESCAPE_CHAR) ^ 0x55)
+            if byte == ESCAPE_CHAR :
+               byte = (self.__rcve()[0] ^ ESCAPE_CHAR[0] ^ 0x55).to_bytes(1, 'little')
 
-               if not (data[i] in SpecialChar) :
+               if not (byte in DecodedChar) :
                   self.log.debug(u'Secuencia de escape desconocida '\
-                                         u'ESC (0x1B) / 0x%02X' % ord(data[i]))
+                                         u'ESC (0x1B) / 0x%02X' % ord(byte))
                   raise OTCProtocolError(u'Se recibio una secuencia '
                                           u'de escape desconocida', None, self)
                self.log.debug(u'Secuencia de escape identificada '
-                                               u'para : 0x%02X' % ord(data[i]))
+                                               u'para : 0x%02X' % ord(byte))
 
-            elif data[i] == ACK_CHAR :
+            elif byte == ACK_CHAR :
                raise OTCProtocolError(u'Se recibio ACK, truncando'
                               u' la recepción (%d en lugar de %d bytes).'
                                                    % ((i+1), size), None, self)
 
-            elif data[i] == NACK_CHAR :
+            elif byte == NACK_CHAR :
                raise OTCProtocolError(u'Se recibió (NACK), interrumpiendo'
                                 u' la recepción (a %d en lugar de %d bytes).'
                                                    % ((i+1), size), None, self)
-
+            data += byte
+            
          if not self.__RcveAns() :
             raise OTCProtocolError(u'El dispositivo rechazo la lectura.',
                                                                     None, self)
 
-         return map(ord, data)
+         #return [b for b in data]
+         return data
 
       except OTCProtocolError as e :
          raise OTCProtocolError(u'Fallo la Recepcion.', e, self)
 
 
+   def __encodeData(self, data_bytes) :
+      # En este punto data puede contener los caracteres especiales
+      # que deben ser substituidos por sus secuencias de escape ...
+      for ch in EncodedChar :
+            data_bytes = data_bytes.replace(ch,
+                                          b'\x1B' + bytes([0x1B ^ ord(ch) ^ 0x55]))
+      # antes de enviarla :
+      return data_bytes
+
+   
    def getData(self, adr, size) :
       u"""
       Lee size bytes desde la dirección adr en el dispositivo y los devuelve
@@ -195,7 +207,8 @@ class OTCProtocol :
 
             # Envía el comando según el protocolo, nótese que se asegura la con-
             #versión a una secuencia de bytes de los parámetros importados :
-            cmd = GET_CHAR + struct.pack('<H', adr) + struct.pack('<B', size)
+            cmd = GET_CHAR + self.__encodeData(struct.pack('<H', adr) 
+                                                         + struct.pack('<B', size))
             self.__xmit(cmd)
 
             # Se espera por la respuesta del comando :
@@ -204,6 +217,7 @@ class OTCProtocol :
             return ans
 
          except OTCProtocolError as e :
+            print("error ;", e)
             raise OTCProtocolError(u'No se pudo obtener el contenido de ' \
                                u'0x%04X / 0x%02X bytes.' %(adr, size), e, self)
 
@@ -217,7 +231,7 @@ class OTCProtocol :
       mode es ignorado. Cuando data es un entero el parámetro mode controla
       si solo se consideran los primeros 8 bis (mode = 'byte') o los primeros
       16 bits (mode = 'word').
-      La lista de bytes es en realidad una lista de enteros, el que solo se
+      La lista de bytes es en realidad una lista de enteros, en la que solo se
       consideran válidos los bytes LSB de c/u.
       """
       with self._lock :
@@ -225,18 +239,27 @@ class OTCProtocol :
             if isinstance(data, str) :
                data_bytes = data
             elif isinstance(data, int) :
-               if mode == 'byte' :
-                  data_bytes = chr(data & 0xFF)
-               elif mode == 'word' :
+               if mode in ['byte', 'uint8_t'] :
+                  data_bytes = struct.pack('b', data)
+               elif mode in ['word', 'uint16_t'] :
                   data_bytes = struct.pack('<H', data)
+               elif mode in ['dword', 'uint32_t'] :
+                  data_bytes = struct.pack('<I', data)
+               elif mode in ['uint40_t'] :
+                  data_bytes = struct.pack('<Q', data)
                else :
+                  if (data < 0) or (data >= 1099511627776) :
+                    raise ValueError('argument out of range')
+                    sys.exit()
+                    
                   self.log.exception(u'SetData : Tercer argumento '
                                                            u'(mode) inválido.')
-                  sys.exit()
             elif isinstance(data, list) :
-               data_bytes = ""
+               data_bytes = b''
                for item in data :
                   data_bytes += struct.pack('<B', item)
+            elif isinstance(data, bytes) :
+               data_bytes = data
             else :
                raise ValueError(u'SetData : Primer argumento (data) no es '
                                  u'un tipo válido (str, int o list de int).\n')
@@ -254,18 +277,12 @@ class OTCProtocol :
             self.__comm.flushInput()
 
             # Envía el comando según el protocolo, nótese que se asegura la con-
-            # versión a una secuencia de bytes de los parámetros importados :
-            cmd = SET_CHAR + struct.pack('<H', adr) + struct.pack('B',
-                                                               len(data_bytes))
+            # versión a una secuencia de bytes de los parámetros importados y se 
+            # asegura de substituir los caracteres especiales por sus secuencias 
+            # de escape :
+            cmd = SET_CHAR + self.__encodeData(struct.pack('<H', adr) + struct.pack('B',
+                                                     len(data_bytes)) + data_bytes)
             self.__xmit(cmd)
-
-            # En este punto data_bytes puede contener los caracteres especiales
-            # que deben ser substituidos por sus secuencias de escape ...
-            for ch in SpecialChar :
-               data_bytes = data_bytes.replace(ch,
-                                           '\x1B' + chr(0x1B ^ ord(ch) ^ 0x55))
-            # antes de enviarla :
-            self.__xmit(data_bytes)
 
             # Se espera por la respuesta del comando :
             ans = self.__RcveAns()
@@ -290,7 +307,7 @@ class OTCProtocol :
       # Cuando comm_name es None, solo después de abrir el puerto (caso de 
       # puertos Bluetooth en Android) se puede nominar el manejador de
       # reportes, mientras tanto se asigna provicionalmente :
-      self.log = report.report.getLogger(u'OTCProtocol.' + 
+      self.log = report.getLogger(u'OTCProtocol.' + 
                (u'*OPPENING_IN_PROGRESS*' if comm_name is None else comm_name))
 
       # La instancia de la clase puede ser utilizada por mas de un hilo de 
@@ -329,7 +346,7 @@ class OTCProtocol :
             if comm_name == u'*OPPENING_IN_PROGRESS*' :
                comm_name = self.__comm.port
                # Ahor aa se puede identificar el manejador de reportes :
-               self.log = report.report.getLogger(u'OTCProtocol.' + comm_name)
+               self.log = report.getLogger(u'OTCProtocol.' + comm_name)
                
             self.log.debug(u'El puerto %s esta preparado para la comunicación.'\
                                                              % self.__comm.port)

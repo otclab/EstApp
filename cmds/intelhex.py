@@ -161,7 +161,7 @@ def BuildRecord(**farg) :
             if (farg['usba'] >= 0) and (farg['usba'] <= 0xFFFF) :
                load_offset = 0
                rectype = 2
-               info = [farg['usba'] % 256, farg['usba'] / 256]
+               info = [farg['usba'] % 256, farg['usba'] // 256]
             else :
                raise ValueError("'usba' fuera de rango.")
          else :
@@ -173,7 +173,7 @@ def BuildRecord(**farg) :
             if (farg['ulba'] >= 0) and (farg['ulba'] <= 0xFFFF) :
                load_offset = 0
                rectype = 4
-               info = [farg['ulba'] % 256, farg['ulba'] / 256]
+               info = [farg['ulba'] % 256, farg['ulba'] // 256]
             else :
                raise ValueError("'ulba' fuera de rango.")
          else :
@@ -188,7 +188,7 @@ def BuildRecord(**farg) :
                info = []
                for i in range(0,4) :
                   info += [farg['csip'] % 256]
-                  farg['csip'] = farg['csip'] / 256
+                  farg['csip'] = farg['csip'] // 256
             else :
                raise ValueError("'csip' fuera de rango.")
          else :
@@ -203,7 +203,7 @@ def BuildRecord(**farg) :
                info = []
                for i in range(0,4) :
                   info += [farg['csip'] % 256]
-                  farg['csip'] = farg['csip'] / 256
+                  farg['csip'] = farg['csip'] // 256
             else :
                raise ValueError("'eip' fuera de rango.")
          else :
@@ -261,7 +261,7 @@ def BuildRecord(**farg) :
    record += "".join(['{0:02X}'.format(b) for b in info])
 
    # Se calcula la suma de verificación ...
-   chksum = 256 - ((len(info) + (load_offset/256) + (load_offset % 256) + rectype + sum(info)) % 256)
+   chksum = 256 - ((len(info) + (load_offset//256) + (load_offset % 256) + rectype + sum(info)) % 256)
 
    # y finalmente se añade al registro para completarlo :
    record += '{0:02X}'.format(chksum)
@@ -288,12 +288,12 @@ def BytesOf(val, len) :
    list_bytes = [0]*len
    for i in range(1, len+1) :
       list_bytes[-i] = val % 256
-      val = (val/256)
+      val = (val//256)
    return list_bytes
 
 def IsListofBytes(L) :
-   return ((type(L) in (list, tuple)) and
-            all((type(x) in [int, long]) and (x >= 0) and (x < 256) for x in L))
+   return (isinstance(L, (list, tuple)) and
+            all([isinstance(x, (int)) and (x >= 0) and (x < 256) for x in L]))
 
 
 class IntelHexRecord(object) :
@@ -309,7 +309,7 @@ class IntelHexRecord(object) :
       '''
       Devuelve la representación en el formato IntelHex del registro.
       '''
-      chksum = 256 - ((len(self.info) + (self.offset/256) + (self.offset % 256) +
+      chksum = 256 - ((len(self.info) + (self.offset//256) + (self.offset % 256) +
                               RecordTypeDict[self.typ] + sum(self.info)) % 256)
 
       return ':' +                                                  \
@@ -336,7 +336,7 @@ class IntelHexRecord(object) :
 
       # y los convierte a sus valores :
       try :
-         bytes = map(int, bytes_str, [16 for i in range(0, len(bytes_str))])
+         bytes = list(map(int, bytes_str, [16 for i in range(0, len(bytes_str))]))
       except ValueError as e :
          raise ValueError(u'%s no puede interpretarse como un byte' % e.args[0][-5:-1])
 
@@ -446,7 +446,8 @@ class UlbaRecord(IntelHexRecord) :
    def __init__(self, ulba) :
       IntelHexRecord.__init__(self)
       self.typ = 'ulba'
-      if type(ulba) in [int, long] :
+
+      if type(ulba) in [int] :
          self.info = BytesOf(ulba, 2)
 
       elif IsListofBytes(ulba) and (len(ulba) == 2) :
@@ -454,7 +455,7 @@ class UlbaRecord(IntelHexRecord) :
          self.info.append(ulba[1])
 
       else :
-         raise ArgumentError(u'UlbaRecord.__init__ invocado con un argumento de tipo inválido.')
+         raise ValueError(u'UlbaRecord.__init__ invocado con un argumento de tipo inválido (%s).' % type(ulba))
 
    def adr(self) :
       return WordAt(self.info, 0)
@@ -469,7 +470,7 @@ class UsbaRecord(IntelHexRecord) :
       IntelHexRecord.__init__(self)
       self.typ = 'usba'
 
-      if type(usba) in [int, long] :
+      if type(usba) in [int] :
          self.info = BytesOf(usba, 2)
 
       elif IsListofBytes(usba) and (len(usba) == 2) :
@@ -477,7 +478,7 @@ class UsbaRecord(IntelHexRecord) :
          self.info.append(usba[1])
 
       else :
-         raise ArgumentError(u'UsbaRecord.__init__ invocado con un argumento de tipo inválido.')
+         raise ValueError(u'UsbaRecord.__init__ invocado con un argumento de tipo inválido.')
 
    def adr(self) :
       return WordAt(self.info, 0)
@@ -491,23 +492,23 @@ class DataRecord(IntelHexRecord) :
       IntelHexRecord.__init__(self)
       self.typ = 'data'
 
-      if not type(offset) in [int, long] :
-         raise ArgumentError(u'DataRecord.__init__, el primer argumento de un tipo inválido.')
+      if not type(offset) in [int] :
+         raise ValueError(u'DataRecord.__init__, el primer argumento de un tipo inválido.')
       self.offset = offset
 
       if IsListofBytes(data) :
-         if (length != None) and not (type(length) in [int, long]) :
-            raise ArgumentError(u'DataRecord.__init__, el tercer argumento de un tipo inválido.')
+         if (length is not None) and not (type(length) in [int]) :
+            raise ValueError(u'DataRecord.__init__, el tercer argumento de un tipo inválido.')
 
-         if length == None : length = len(data)
+         if length is None : length = len(data)
 
          if  length > 256 :
-            raise ArgumentError(u'DataRecord.__init__ el tamaño de la lista de datos es demasiado grande.')
+            raise ValueError(u'DataRecord.__init__ el tamaño de la lista de datos es demasiado grande.')
 
          self.info = data[0:length]
 
       else :
-         raise ArgumentError(u'DataRecord.__init__ invocado con el segundo argumento de un tipo inválido.')
+         raise ValueError(u'DataRecord.__init__ invocado con el segundo argumento de un tipo inválido.')
 
 
 class CsipRecord(IntelHexRecord) :
@@ -519,7 +520,7 @@ class CsipRecord(IntelHexRecord) :
          self.info = BytesOf(csip['cs'])
          self.info.append(BytesOf(csip['ip']))
 
-      elif type(csip) in [int, long] :
+      elif type(csip) in [int] :
          self.info = BytesOf(csip, 4)
 
       elif IsListofBytes(eip):
@@ -527,7 +528,7 @@ class CsipRecord(IntelHexRecord) :
          self.info = ([0]*(4 - len(csip)) + csip)
 
       else :
-         raise ArgumentError(u'CsipRecord.__init__ invocado con un argumento de tipo inválido.')
+         raise ValueError(u'CsipRecord.__init__ invocado con un argumento de tipo inválido.')
 
 
 class EipRecord(IntelHexRecord) :
@@ -542,7 +543,7 @@ class EipRecord(IntelHexRecord) :
          self.info = BytesOf(eip['cs'])
          self.info.append(BytesOf(eip['ip']))
 
-      elif type(eip) in [int, long] :
+      elif type(eip) in [int] :
          self.info = BytesOf(eip, 4)
 
       elif IsListofBytes(eip):
@@ -550,7 +551,7 @@ class EipRecord(IntelHexRecord) :
          self.info = ([0]*(4 - len(eip)) + eip)
 
       else :
-         raise ArgumentError(u'EipRecord.__init__ invocado con un argumento de tipo inválido.')
+         raise ValueError(u'EipRecord.__init__ invocado con un argumento de tipo inválido.')
 
 
 class BytesRange(object) :
@@ -558,8 +559,8 @@ class BytesRange(object) :
    Contenedor de una secuencia continua de bytes.
    '''
    def __init__(self, base_adr, rec) :
-      if not(type(base_adr) in [int, long]) or (base_adr < 0):
-         raise ArgumentError(u'BytesRange.__init__ : Primer argumento no es un número entero no negativo.')
+      if not(type(base_adr) in [int]) or (base_adr < 0):
+         raise ValueError(u'BytesRange.__init__ : Primer argumento no es un número entero no negativo.')
 
       if IsListofBytes(rec) :
             self.start = base_adr
@@ -572,33 +573,33 @@ class BytesRange(object) :
          self.bytes = rec.info
 
       else :
-         raise ArgumentError(u'BytesRange.__init__ : El segundo argumento no es un registro o lista/tupla de bytes.')
+         raise ValueError(u'BytesRange.__init__ : El segundo argumento no es un registro o lista/tupla de bytes.')
 
 
    def Append(self, bytes_range) :
       if type(bytes_range) != BytesRange :
-         raise ArgumentError(u'BytesRange.Append : El argumento es de un tipo inválido.')
+         raise ValueError(u'BytesRange.Append : El argumento es de un tipo inválido.')
       self.bytes.extend(bytes_range.bytes)
       self.end = bytes_range.end
 
    def IsPriorAdjacent(self, bytes_range) :
       if type(bytes_range) != BytesRange :
-         raise ArgumentError(u'BytesRange.Append : El argumento es de un tipo inválido.')
+         raise ValueError(u'BytesRange.Append : El argumento es de un tipo inválido.')
       return (self.end == (bytes_range.start - 1))
 
    def IsPostAdjacent(self, bytes_range) :
       if type(bytes_range) != BytesRange :
-         raise ArgumentError(u'BytesRange.Append : El argumento es de un tipo inválido.')
+         raise ValueError(u'BytesRange.Append : El argumento es de un tipo inválido.')
       return (bytes_range.end == (self.start - 1))
 
    def IsOverlaping(self, bytes_range) :
       if type(bytes_range) != BytesRange :
-         raise ArgumentError(u'BytesRange.Append : El argumento es de un tipo inválido.')
+         raise ValueError(u'BytesRange.Append : El argumento es de un tipo inválido.')
       return ((self.start >= bytes_range.end) and (bytes_range.start >= self.end))
 
    def IsPreceding(self, bytes_range) :
       if type(bytes_range) != BytesRange :
-         raise ArgumentError(u'BytesRange.Append : El argumento es de un tipo inválido.')
+         raise ValueError(u'BytesRange.Append : El argumento es de un tipo inválido.')
       return (self.start < bytes_range.start)
 
 class BytesBlock(object) :
@@ -612,7 +613,7 @@ class BytesBlock(object) :
    # TO DO : si rec es una lista de bytes debe incluirse como argumento adicional
    # el offset
    def add(self, rec) :
-      if self.base_adr == None :
+      if self.base_adr is None :
          raise ValueError('BytesBlock.add invocada sin haber definido la dirección base.')
 
       if IsListofBytes(rec) :
@@ -747,7 +748,7 @@ class IntelHex(object) :
       # Codifica la memoria ULBA :
       if self.ulba.data != [] :
          base_adr = self.ulba.data[0].start & 0xFFFF0000
-         txt += UlbaRecord(base_adr/65536).__str__() + '\n'
+         txt += UlbaRecord(base_adr//65536).__str__() + '\n'
 
          for data_range in self.ulba.data :
             adr = data_range.start
@@ -755,7 +756,7 @@ class IntelHex(object) :
             while adr < data_range.end :
                if (adr - base_adr) >= 0x10000 :
                   base_adr += adr & 0xFFFF0000
-                  txt += UlbaRecord(base_adr/65536).__str__() + '\n'
+                  txt += UlbaRecord(base_adr//65536).__str__() + '\n'
                   continue
 
                length = min(16, data_range.end + 1 - adr, base_adr + 0x10000 - adr)
@@ -766,14 +767,14 @@ class IntelHex(object) :
       # Codifica la memoria USBA :
       if self.usba.data != [] :
          base_adr = self.ulba.data[0].start & 0xFFFFFFF0
-         txt += UsbaRecord(base_adr/16).__str__() + '\n'
+         txt += UsbaRecord(base_adr//16).__str__() + '\n'
 
          for data_range in self.usba.data :
             adr = data_range.start
             while adr < data_range.end :
                if (adr - base_adr) >= 0x10000 :
                   base_adr += adr & 0xFFFFFFF0
-                  txt += UlbaRecord(base_adr/16).__str__() + '\n'
+                  txt += UlbaRecord(base_adr//16).__str__() + '\n'
                   continue
 
                length = min(16, data_range.end + 1 - adr, base_adr + 0x10000 - adr)
@@ -782,11 +783,11 @@ class IntelHex(object) :
                adr += length
 
       # Codifica la dirección de ejecución real (CSIP) :
-      if self.csip != None :
+      if self.csip is not None :
          txt += self.csip.__str__() + '\n'
 
       # Codifica la dirección de ejecución real (CSIP) :
-      if self.eip != None :
+      if self.eip is not None :
          txt += self.eip.__str__() + '\n'
 
       # Fin del registro

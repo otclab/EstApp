@@ -3,9 +3,9 @@
 
 __author__ = 'Oscar'
 
-from ext_struct import ext_struct
+from otcCard.ext_struct import ext_struct
 from weakref import WeakKeyDictionary
-from OTCProtocol import *
+from otcCard.OTCProtocol import *
 import logging
 
 # Direcciones de las cadenas de identificación del Modelo/Versión
@@ -34,8 +34,8 @@ class OTCCard(object) :
      id  : Identificación del hardware y software de la tarjeta.
 
   La creación de una instancia inicia la comunicación con el dispositivo
-  (en el puerto dev) y la obtención de la identificación del software
-  (nombre/kernel, versión y revisión).
+  (en el puerto dev) y la obtención de la identificación del hardware y
+  software (nombre/kernel, versión y revisión).
   '''
   def __init__(self, dev, log, ) :
     if not isinstance(dev, OTCProtocol) :
@@ -50,6 +50,13 @@ class OTCCard(object) :
     try :
       self.log.debug(u'Obteniendo la identificación del dispositivo remoto ...')
 
+      _hardware_model    = CardParameter(HARDWARE_MODEL_ADR   ,
+                               '<' + str(HARDWARE_MODEL_SIZE)    + 's',
+                                         u'Modelo de Hardware'  ).__get__(self)
+      _hardware_version  = CardParameter(HARDWARE_VERSION_ADR ,
+                               '<' + str(HARDWARE_VERSION_SIZE)  + 's',
+                                         u'Versión de Hardware' ).__get__(self)
+
       _software_kernel   = CardParameter(SOFTWARE_KERNEL_ADR  ,
                  '<' + str(SOFTWARE_KERNEL_SIZE)   + 's', u'Modelo de Software'  ).__get__(self)
       _software_release  = CardParameter(SOFTWARE_VERSION_ADR ,
@@ -59,13 +66,12 @@ class OTCCard(object) :
 
       #_production_date = CardParameter(PRODUCTION_DATE_ADR  ,
       #          '<' + PRODUCTION_DATE_SIZE   *'s', u'Fecha de Producción' )
-      strip = lambda s : s[:-1].strip() if s[-1] == '\x00' else  s.strip()
 
-      self._id = { u'hardware_model'    : 'unknown'                ,
-                   u'hardware_version'  : 'unknown'                ,
-                   u'software_kernel'   : strip(_software_kernel)  ,
-                   u'software_release'  : strip(_software_release) ,
-                   u'software_revision' : strip(_software_revision) }
+      self._id = { u'hardware_model'    : _hardware_model    ,
+                   u'hardware_version'  : _hardware_version  ,
+                   u'software_kernel'   : _software_kernel   ,
+                   u'software_release'  : _software_release  ,
+                   u'software_revision' : _software_revision  }
 
     except OTCProtocolError as e:
       raise OTCProtocolError(u'No se pudo obtener la identificación '
@@ -128,7 +134,6 @@ class CardParameter(object) :
   """
   # TODO Revisar los formatos byte, word y S
   def __init__(self, adr, fmt, name, typ = 'normal') :
-    self.value = None
     self.adr = adr
     self.name = name
 
@@ -139,13 +144,32 @@ class CardParameter(object) :
     # la instancia y value. Por otro lado, si la instancia es desechada no
     # es necesario mantenerla (ni obstruir el trabajo de colector de desechos)
     # por lo que se utiliza WeakKeyDictionary :
-    self.value = WeakKeyDictionary()
+    self.value = dict() #WeakKeyDictionary()
 
     # se reconocen los formatos específicos 'byte' y 'word'
-    if fmt == 'byte' :
+    if fmt in ['byte', 'uint8_t'] :
       fmt = '<B'
-    elif fmt == 'word' :
+
+    elif fmt in ['word', 'uint16_t'] :
       fmt = '<H'
+
+    elif fmt in ['uint24_t'] :
+      fmt = '<G'
+
+    elif fmt in ['int24_t'] :
+      fmt = '<g'
+
+    elif fmt in ['dword', 'uint32_t'] :
+      fmt = '<L'
+
+    elif fmt in ['int32_t'] :
+      fmt = '<l'
+
+    elif fmt in ['uint40_t'] :
+      fmt = '<J'
+
+    elif fmt in ['int40_t'] :
+      fmt = '<j'
 
     self.fmt = fmt
 
@@ -191,7 +215,7 @@ class CardParameter(object) :
 
       # Para normalizar la identificación de los componentes del parámetro se
       # convierte en una cadena de caracteres ...
-      val = "".join(map(chr, val))
+      #val = "".join(map(chr, val))
       card.log.debug (u"Valor del parámetro : <%s>" %repr(val))
 
       # Se decodifica el paquete de datos :
@@ -213,11 +237,6 @@ class CardParameter(object) :
       raise OTCProtocolError( u'Fallo la lectura de "%s".' %self.name, e, card)
 
     except Exception as e:
-      print 'val: %s (%d)' % (val, len(val))
-      print 'fmt: %s' %self.fmt
-      print 'card', card
-      print 'name', self.name
-      print 'self.value', self.value
       card.log.exception(u'RemoteParameter.__get__ : '
                     u'Fallo inesperado al leer el parámetro: "%s".', self.name)
       raise e
@@ -253,17 +272,25 @@ class CardParameter(object) :
         val = val[0]
     else :
       val = (val,)
+      
     try :
       # Se codifica val en una cadena de caracteres :
       val_str = ext_struct.pack(self.fmt, *val)
 
       # Se actualiza el valor del parámetro en el dispositivo remoto,
-      # en segmentos limitados de 16 bytes :
-      for n in range(0, len(val_str), 16) :
-         card.dev.setData(self.adr + n, val_str[n : n+16])
+      # en segmentos limitados  en las frontera de 16 bytes :
+      substr_adr = self.adr
+      while len(val_str) > 0 :
+        substr_len = 16 - (substr_adr & 0x0F)
+        card.dev.setData(substr_adr, val_str[0: substr_len])
+        substr_adr += substr_len
+        val_str = val_str[substr_len:]
+
+      #for n in range(0, len(val_str), 16) :
+      #   card.dev.setData(self.adr + n, val_str[n : n+16])
 
       # En este punto self.value es una tupla, tipo que es inconveniente cuando
-      #solo existe un solo valor, y se requiere manipularlo directamente :
+      # solo existe un solo valor, y se requiere manipularlo directamente :
       if len(val) == 1 : val = val[0]
 
       # Se memoriza el último valor del parámetro (En razón de evitar el uso
@@ -274,7 +301,7 @@ class CardParameter(object) :
       return
 
     except OTCProtocolError as e:
-      self.value = None
+      del self.value[card]
       raise OTCProtocolError(u'No se pudo modificar "%s".'%self.name, e, card)
 
     except Exception as e:
@@ -353,10 +380,11 @@ class ScaledParameter(object) :
     else :
       self.fmt = lambda x : fmt %(x, x.internal)
 
+
   def __set__(self, instance, value):
     value = self.__funs[1](value)
 
-    if isinstance(value, (int, long, float)) :
+    if isinstance(value, (int, float)) :
       chk_value = value
     else :
       chk_value = self.__funs[0](value)
@@ -365,6 +393,7 @@ class ScaledParameter(object) :
       raise ValueError('Valor interno (%d) fuera de rango .' % chk_value)
 
     self.card_parameter.__set__(instance, value)
+
 
   def __get__(self, instance, owner):
     card_parameter = self.card_parameter

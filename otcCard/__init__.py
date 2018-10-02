@@ -1,5 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from OTCCard import *
-from OTCProtocol import *
+from .SerialDevice import *
+from .OTCCard import *
+from .OTCProtocol import *
+

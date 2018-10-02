@@ -1,8 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys
+from otcCard import *
 from estCard.EstCard import *
+
 
 
 def openCard(port, throughput_limit = False, report = True) :
@@ -14,27 +15,26 @@ def openCard(port, throughput_limit = False, report = True) :
   que es controlada por report.
   """
   try :
-    print u"Conectando ...\r",
-    card  = EstCard(port, throughput_limit)
+    print("Conectando ...", end='\r')
+    card = EstCard(port, throughput_limit)
 
     if report :
-       print u"Conectado a :"
-       print u"      Hardware : %s" %card.id['hardware_model'   ]
-       print u"       Versión : %s" %card.id['hardware_version' ]
-       print u"      Software : %s" %card.id['software_kernel'  ]
-       print u"       versión : %s" %card.id['software_release' ]
-       print u"      revisión : %s" %card.id['software_revision']
-       print u"\n"
+       print("Conectado a :")
+       print("      Hardware : %s" %card.id['hardware_model'   ])
+       print("       Versión : %s" %card.id['hardware_version' ])
+       print("      Software : %s" %card.id['software_kernel'  ])
+       print("       versión : %s" %card.id['software_release' ])
+       print("      revisión : %s" %card.id['software_revision'])
+       print("\n")
 
     if not card.isKnown :
-      ans = raw_input('El modelo es desconocido!, '
-                           '¿Se Continua? [S/N] ').decode(sys.stdin.encoding)
+      ans = input('El modelo es desconocido!, ¿Se Continua? [S/N] ')
       if ans.lower() in ['n', 'no'] :
         sys.exit(0)
 
     return card
 
-  except OTCProtocolError as e :
+  except OTCProtocolError :
     sys.exit(1)
 
 
@@ -73,15 +73,15 @@ def parsePort(args, required = []) :
     return (port, args)
 
   except :
-    print args
+    print(args)
     if (len(args) < 2) or (not args[1] in required) :
       return (None, args)
 
-    print u'Seleccione el puerto serie :'
+    print('Seleccione el puerto serie :')
     ports = com_list()
 
     if len(ports) == 0 :
-      print u'Error : El Sistema no tiene puertos serie.'
+      print('Error : El Sistema no tiene puertos serie.')
 
     elif len(ports) == 1 :
       return (ports[0], args)
@@ -94,19 +94,19 @@ def parsePort(args, required = []) :
             if p.startswith(t) : return types[t]
          return p
 
-       print '\n'.join(['   [%d] -> %-8s / %s'%
+       print('\n'.join(['   [%d] -> %-8s / %s'%
                           (i+1, ports[k], porttype(k.split('\\')[-1]))
-                                           for i,k in enumerate(ports.keys())])
+                                           for i,k in enumerate(ports.keys())]))
 
        while True :
          try :
-           ans = (raw_input(u'\nIndice del puerto serie ? ')).decode(sys.stdin.encoding)
+           ans = (input(u'\nIndice del puerto serie ? ')).decode(sys.stdin.encoding)
            ans = int(ans) - 1
            if (ans >= 0) and (ans < len(ports)) :
              break
          except :
            if ans == u'x' :
-             print u'Operación abortada a petición'
+             print('Operación abortada a petición')
              sys.exit(1)
 
            print (u'No es un número. Intente de nuevo.')

@@ -1,13 +1,13 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
+#-*- coding: utf-8 -*-
 
 import sys
 from common import openCard
 
 
 def ThresholdCmd(args, port, throughput_limit) :
-  u"""
-    EstParser : Umbrales de Tensión de los Taps
+  """
+    EstApp : Umbrales de Tensión de los Taps
     ===========================================
 
     Tiene tres formas :
@@ -43,68 +43,68 @@ def ThresholdCmd(args, port, throughput_limit) :
   card = openCard(port, throughput_limit)
 
   if (len(args) < 3) or (args[2] == u'?') :
-    print card.threshold
+    print(card.threshold)
 
   elif args[2] == 'total' :
     if (len(args) < 4) or (args[3] == u'?') :
-       print u'El Número Total de Taps es : %d' %len(card.threshold)
+       print('El Número Total de Taps es : %d' %len(card.threshold))
     else :
       try :
         val = int(u' '.join(args[3:]))
       except :
-        print u'Error : "%s" no es un número.' % args[3:]
+        print('Error : "%s" no es un número.' % args[3:])
         card.close()
         sys.exit(1)
 
       try :
         card.threshold.len = val
       except ValueError as e :
-        print e.message
+        print(e.message)
         card.close()
         sys.exit(1)
 
-      print u'El Número Total de Taps (operativos) se '                     \
-                                        u'reajusto a %d' %len(card.threshold)
+      print(u'El Número Total de Taps (operativos) se '                     \
+                                        u'reajusto a %d' %len(card.threshold))
   elif args[2] in num_tap :
     if not (num_tap.index(args[2]) < len(card.threshold)) :
-      print u'Error : El tap excede el número de taps operativos.'
+      print(u'Error : El tap excede el número de taps operativos.')
       card.close()
       sys.exit(1)
 
     if len(args) < 4 :
-      print 'Los Umbrales del tap %s  son :\n  ' % args[2],
-      print card.threshold[num_tap.index(args[2])]
+      print ('Los Umbrales del tap %s  son :\n  ' % args[2],)
+      print (card.threshold[num_tap.index(args[2])])
 
     else :
       pos = [u'sup', u'superior', u'inf', u'inferior']
       if not args[3].lower() in pos :
-        print u'Error : %s no indica la posición del umbral '               \
-                                      u'(sup(erior) o inf(erior)).' % args[3]
+        print('Error : %s no indica la posición del umbral '               \
+                                      '(sup(erior) o inf(erior)).' % args[3])
         card.close()
         sys.exit(1)
 
       tap_idx = num_tap.index(args[2])
       if len(args) < 5 :
-        print 'El Umbral %s del %s tap es %s' %(
+        print('El Umbral %s del %s tap es %s' %(
                    pos[pos.index(args[3][:3])+1].capitalize(), args[2],
-                               getattr(card.threshold[tap_idx], args[3][:3]))
+                               getattr(card.threshold[tap_idx], args[3][:3])))
       else :
         try :
           val = float(args[4])
           setattr(card.threshold[tap_idx], args[3][:3], val)
         except Exception as e:
-          print u"Error : %s no es un número o esta fuera de rango." % args[4]
+          print("Error : %s no es un número o esta fuera de rango." % args[4])
           card.close()
           sys.exit(1)
 
-        print 'Se reajusto el Umbral %s del %s tap a %s' %(
+        print('Se reajusto el Umbral %s del %s tap a %s' %(
                    pos[pos.index(args[3][:3])+1].capitalize(), args[2],
-                               getattr(card.threshold[tap_idx], args[3][:3]))
+                               getattr(card.threshold[tap_idx], args[3][:3])))
 
   else :
-    print u'Error : "%s" no es el índice de un tap o '                      \
-                                          u'el sub-comando "total".' %args[2]
-    print u'Pruebe la opción -h -u para ver los detalles.'
+    print(u'Error : "%s" no es el índice de un tap o '                      \
+                                          u'el sub-comando "total".' %args[2])
+    print('Pruebe la opción -h -u para ver los detalles.')
     card.close()
     sys.exit(1)
 

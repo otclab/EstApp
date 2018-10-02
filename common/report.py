@@ -5,7 +5,7 @@ import sys
 import logging
 
 
-class report() :
+class report :
    parent_logger = None
    console_handler = None
 
@@ -17,8 +17,8 @@ class report() :
       tiene el nombre por defecto 'report.log'.
       """
       # Solo se permite un sistema de reporte :
-      if report.parent_logger != None :
-         print "report() debe ser invocado una sola vez."
+      if report.parent_logger is not None :
+         print("report() debe ser invocado una sola vez.")
          sys.exit()
 
       # Crea la raíz de reporte :
@@ -52,10 +52,10 @@ class report() :
       Si no se ha creado la instancia de report, el logger se desvia
       a Nulllogging
       """
-      if report.parent_logger == None :
+      if report.parent_logger is None :
          return
 
-      if child_logger == None :
+      if child_logger is None :
          return logging.getLogger(report.parent_logger.name)
       else :
          return logging.getLogger(report.parent_logger.name + '.' + child_logger)

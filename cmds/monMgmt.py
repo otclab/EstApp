@@ -4,7 +4,7 @@
 import sys
 from common import openCard
 from estCard.EstCard import *
-import Queue
+import queue
 import threading
 from datetime import datetime
 
@@ -16,21 +16,21 @@ class RecordReadingTask(threading.Thread) :
     # Abre el archivo ...
     try :
       self.file = open(filename, 'w')
-    except IOError as (errno, str_error):
-      print u'El archivo "%s" no se pudo abrir.' %self.filename
+    except :
+      print('El archivo "%s" no se pudo abrir.' %self.filename)
 
     # y define la cabecera con la identificación del modelo de la tarjeta,
     # escala  y ganancias de las entradas de tensión.
     try :
       self.file.write('# Modelo       : %s\n' %card.id['hardware_model'])
       self.file.write('# Escala       : %s\n' % card.scale)
-      for g in map(lambda(x) : '_gain%s' %x , card.inputs_available()) :
+      for g in map(lambda x : '_gain%s' %x , card.inputs_available()) :
         self.file.write('# Ganancia %s-N : %d\n' %(g[-1], getattr(card, g)))
       self.file.write('# Hora         : %s\n#\n' % str(datetime.now()))
       self.file.write('#  TAP   V(L-N)   V(U-V) \n')
 
-    except IOError as (errno, str_error):
-      print u"No se pudo escribir en el archivo de registro."
+    except :
+      print("No se pudo escribir en el archivo de registro.")
       sys.exit(1)
 
     # Se prepara el hilo de ejecución, para su arranque :
@@ -47,8 +47,8 @@ class RecordReadingTask(threading.Thread) :
         try  :
           self.file.writelines('%5d,%8d,%8d\n' %(measure[0], measure[1],
                                                                 measure[2]))
-        except IOError as (errno, str_error):
-          print u"No se pudo escribir en el archivo de registro."
+        except :
+          print("No se pudo escribir en el archivo de registro.")
           break
 
     self.file.close()
@@ -59,22 +59,18 @@ class RecordReadingTask(threading.Thread) :
 
 def MonCmd(args, port, throughput_limit) :
   u"""
-    EstPaser : Monitor de Tensión
-    =============================
+    EstApp : Monitor de Tensión
+    ===========================
 
     Uso :
-      >> EstParser.py -mon
-      >> EstParser,py -mon cycle [filename]
-      >> EstParser,py -mon sample [input|output] [log_file]
+      >> EstParser.py -mon [log_file]
 
-     La primera forma registra en la conso
-     tla la medición y las estadísticas
-     básicas de las tensiones LN y UV, a una taza de 1 seg.
-     La segunda tambien registra en la consola la medición y las estadísticas
-     básicas de las tensiones LN y UV, pero además registra las mismas a una
-     taza de una vez por ciclo, en el archivo logfile
-     La tercera es similar a la segunda pero a la taza de muestreo del uC,
-     el parámetro input/output define si se realiza en las muestras en
+    Presenta en la consola la medición y las estadísticas básicas de las
+    tensiones LN y UV, a una taza de 1 seg.
+
+     Simultáneamente registra el resultado en el archivo log_file (por
+     defecto 'cycle_sampling.csv') de cada lectura.
+
 
   """
 
@@ -82,24 +78,23 @@ def MonCmd(args, port, throughput_limit) :
 
   # Verifica los parámetros de trabajo :
 
-  filename = args[3] if len(args) > 3 else 'cycle_sampling.csv'
+  filename = args[2] if len(args) > 2 else 'cycle_sampling.csv'
   record_task = RecordReadingTask(card, filename)
 
-  print u'El registro de muestreo por por ciclo se almacenará en %s' %filename
-
+  print('El registro de muestreo por ciclo se almacenará en %s\n' %filename)
 
   try :
-    card.StartMeasure('L Cal')
+    card.StartMeasure()
   except Exception as e :
     card.close()
-    if type(e) != OTCProtocolError : print e
+    if type(e) != OTCProtocolError : print(e)
     sys.exit(1)
 
   record_task.start()
 
   if not card.measure.is_alive() :
-    print 'Measure thread is not alive'
-  old_cnt = 0
+    print( 'Measure thread is not alive')
+
   try :
     while card.measure.is_alive() :
       sleep(1.000)
@@ -107,7 +102,6 @@ def MonCmd(args, port, throughput_limit) :
       # Captutra las lecturas de tensión :
       vLN = str(card.LN)
       vUV = str(card.UV)
-      print card.LN.stats._count
 
       # Se requiere que las estádisticas no sean acumuladas en todo el
       # periodo de medición, sino con cada lectura :
@@ -115,8 +109,7 @@ def MonCmd(args, port, throughput_limit) :
       card.UV.stats.arm()
 
       # Presenta los resultados en la consola :
-      print u'[L-N] %s, ' % vLN,
-      print u'[U-V] %s, ' % vUV,
+      print('[L-N] %s, [U-V] %s, [%2d]' %(vLN, vUV, card.LN.stats._count))
 
   except KeyboardInterrupt :
       pass
