@@ -6,6 +6,7 @@ import sys
 import threading
 from time import sleep
 
+from .OTCProtocolError import OTCProtocolError
 import otcCard.SerialDevice as SerialDevice
 from common.report import report
 
@@ -85,7 +86,7 @@ class OTCProtocol :
          if self.throughput_limit :
             sleep(0.05)
          
-      except SerialDevice.SerialTimeoutException as e:
+      except OTCProtocolError as e:
          raise OTCProtocolError(u'Fallo de Transmisión (timeout).', e, self)
 
 
@@ -323,37 +324,30 @@ class OTCProtocol :
       
       with self._lock :
          # Puerto serie utilizado para la comunicación :
-         self.__comm = SerialDevice.Serial()
+         self.__comm = SerialDevice()
 
-         try :
+         # Se definen los parámetros de operación del puerto serie :
+         self.__comm.port     = comm_name
+         self.__comm.baudrate = 57600
+         self.__comm.bytesize = 8
+         self.__comm.parity   = 'N'
+         self.__comm.timeout  = 0.5
+         self.__xmitTimeout   = 0.5
+         self.__comm.stopbits = 1
+         self.__comm.xonxoff  = 0
+         self.__comm.rtscts   = 0
+         self.__comm.dsrdtr   = 0
 
-            # Se definen los parámetros de operación del puerto serie :
-            self.__comm.port     = comm_name
-            self.__comm.baudrate = 57600
-            self.__comm.bytesize = 8
-            self.__comm.parity   = 'N'
-            self.__comm.timeout  = 0.5
-            self.__xmitTimeout   = 0.5
-            self.__comm.stopbits = 1
-            self.__comm.xonxoff  = 0
-            self.__comm.rtscts   = 0
-            self.__comm.dsrdtr   = 0
+         # Se abre el puerto serie :
+         self.log.debug(u'Abriendo el puerto serie : %s', str(self.__comm))
 
-            # Se abre el puerto serie :
-            self.log.debug(u'Abriendo el puerto serie : %s', str(self.__comm))
+         self.__comm.open()
+         if comm_name == u'*OPPENING_IN_PROGRESS*' :
+            comm_name = self.__comm.port
+            # Ahor aa se puede identificar el manejador de reportes :
+            self.log = report.getLogger(u'OTCProtocol.' + comm_name)
 
-            self.__comm.open()
-            if comm_name == u'*OPPENING_IN_PROGRESS*' :
-               comm_name = self.__comm.port
-               # Ahor aa se puede identificar el manejador de reportes :
-               self.log = report.getLogger(u'OTCProtocol.' + comm_name)
-               
-            self.log.debug(u'El puerto %s esta preparado para la comunicación.'\
-                                                             % self.__comm.port)
-
-         except SerialDevice.SerialException as e:
-            raise OTCProtocolError(u'El puerto %s serie no existe o '
-                                      u'no esta disponible' %comm_name, e, self)
-
+         self.log.debug(u'El puerto %s esta preparado para la comunicación.'\
+                                                          % self.__comm.port)
 
 

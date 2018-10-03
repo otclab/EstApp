@@ -21,7 +21,7 @@ class ext_struct(object) :
       return struct.pack(b_order + fmt, val)
 
     if not isinstance(val, (int)) :
-      raise('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
+      raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
       
     if fmt in ['g', 'j'] :
       fmt = fmt.upper()

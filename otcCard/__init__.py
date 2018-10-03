@@ -4,4 +4,5 @@
 from .SerialDevice import *
 from .OTCCard import *
 from .OTCProtocol import *
+from .OTCProtocolError import *
 

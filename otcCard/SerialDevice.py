@@ -45,6 +45,8 @@ defecto, en el dispositivo Android.
 
 """
 
+from common.report import report
+from .OTCProtocolError import OTCProtocolError
 
 # Android se reconoce por la existencia del módulo 'android' :
 try :
@@ -59,12 +61,27 @@ if not isAndroid :
   import serial
   import serial.tools.list_ports
 
-  class Serial(serial.Serial) :
-    pass
+  class SerialDevice(serial.Serial) :
 
-  #class SerialException(serial.SerialException) :
-  #  pass
-  SerialException = serial.SerialException
+    def __init__(self, *args, **kwargs):
+      self.log = report.getLogger(u'SerialDevice')
+      super().__init__(*args, **kwargs)
+
+    def open(self, *args, **kwargs) :
+      try :
+        super().open(*args, **kwargs)
+
+      except (serial.SerialException, serial.SerialTimeoutException) as e :
+        raise OTCProtocolError('El puerto %s serie no existe o '
+                               'no esta disponible.' % self.port, e, self)
+
+    def write(self, *args, **kwargs) :
+      try :
+        super().write(*args, **kwargs)
+
+      except (serial.SerialException, serial.SerialTimeoutException) as e :
+        raise OTCProtocolError('El puerto %s no responde.' % self.port, e, self)
+
 
   def com_list() :
     u"""
@@ -78,7 +95,7 @@ if not isAndroid :
     import os
     import _winreg
  
-    com_list = []
+    port_list = []
  
     # Existe un defecto en la función 'list_ports.comports' por la cual no
     # lista los puertos USB en Windows8 (y posiblemente 7) del módulo serial.
@@ -90,10 +107,10 @@ if not isAndroid :
        try:
           key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, path)
           i = 0
-          com_list = {}
+          port_list = {}
           while 1 :
              val = _winreg.EnumValue(key, i)
-             com_list[str(val[0])] = str(val[1])
+             port_list[str(val[0])] = str(val[1])
              i = i+1
  
        except WindowsError:
@@ -102,30 +119,9 @@ if not isAndroid :
     else :
        com_ports = serial.tools.list_ports.comports()
        for i in com_ports :
-          com_list += [i[0]]
+          port_list += [i[0]]
  
-    return com_list
-
-    # TODO El codigo siguiente no es ejecutable :
-    class Serial(serial.Serial) :
-      @property
-      def port(self) :
-        return self._port
-      
-      @port.setter
-      def port(self, val) :
-        was_open = self.isOpen()
-        if was_open : self.Close()
-
-        # En Windows , si el nombre del puerto no es estándar, se maneja con
-        # el prefijo '\\\\.\\' :
-        if (os.name == 'nt') and (val[0:3] != 'COM') :
-          val = '\\\\.\\' + val
-
-        self._port = val
-
-        if was_open :
-          self.open()
+    return port_list
 
 else :
   import RN42Serial
@@ -149,14 +145,6 @@ else :
    # por parte del usuario del dispositivo :
    return [None]
 
-
-
-class SerialTimeoutException(SerialException):
-    """Write timeouts give an exception"""
-
-
-writeTimeoutError = SerialTimeoutException('Write timeout')
-portNotOpenError = SerialException('Attempting to use a port that is not open')
 
 
 

@@ -31,7 +31,7 @@ class report :
       report.console_handler.setLevel(logging.ERROR)
 
       # y un segundo para un archivo de texto, con un detalle exhaustivo :
-      file_handler = logging.FileHandler(filename)
+      file_handler = logging.FileHandler(filename, 'w')
       file_handler.setLevel(logging.DEBUG)
 
       # Se utiliza el mismo formato para ambos manejadores :

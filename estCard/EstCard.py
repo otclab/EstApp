@@ -273,14 +273,14 @@ class CalibrationFactor1V0(object) :
                            'rango.' %self._bin)
 
       else :
-        self._bin = (kwargs['effective']**2)*EstCard1V0.GAIN_NOM
+        self._bin = int((kwargs['effective']**2)*EstCard1V0.GAIN_NOM)
         if self._bin > 65535 :
-          raise ValueError('Error - El factor de calibracion (%f) excede el '
+          raise ValueError('Error - El factor de calibración (%f) excede el '
                            'rango.'% self._bin)
       return
 
     raise ValueError('CalibrationFactor debe invocarse definiendo solo uno de'
-                      ' los siguientes argumentos explicitos : effective = ...'
+                      ' los siguientes argumentos explícitos : effective = ...'
                       ' o internal = ...')
 
   @property
