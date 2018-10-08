@@ -97,57 +97,6 @@ from estCard import *
 from cmds import *
 
 
-# Función auxiliar reconoce la opción op (-g, -cal) de trabajo simultáneo en
-# todas las fases o lsa especificas por fase donde op es el prefijo. precedido
-# por el nombre de la fase (R, S o T).
-def parsePhases(arg, op, card = None) :
-   class _phase(object) :
-      """
-      Clase de Intermediación 'por referencia' (Proxy Class) de los atributos
-      (de la clase EstCard.Phase, i.e. L, U, V) de su atributo propio 'card'
-      Tiene otro atributo propio denominado 'label' que contiene el nombre
-      público (i.e. R, S o T) de la fase de interés.
-      """
-
-      # Diccionario de la correspondencia entre los nombres públicos e internos
-      # de cada fase :
-      internal_name = {'L' : 'LN', 'U' : 'UV', 'V' : 'UV'}
-
-      def __init__(self, label) :
-         self.label = label
-         self.card = card
-
-      def __getattr__(self, name) :
-         phase = self.card.__getattribute__(_phase.internal_name[self.label])
-         return phase.__getattribute__(name)
-
-      def __setattr__(self, name, value) :
-         if name in ['label', 'card'] :
-            self.__dict__[name] = value
-         else :
-            phase = self.card.__getattribute__(_phase.internal_name[self.label])
-            setattr(phase, name, value)
-
-      def __str__(self) :
-         phase = self.card.__getattribute__(_phase.internal_name[self.label])
-         return phase.__str__()
-
-
-   if arg[1] == op :
-     return [_phase('L'), _phase('U'), _phase('V')]
-
-   elif arg[1] == (op + 'L') :
-     return [_phase('R')]
-
-   elif arg[1] == (op + 'V') :
-     return [_phase('S')]
-
-   elif arg[1] == (op + 'T') :
-     return [_phase('T')]
-
-
-
-
 def main(args) :
   # Reconoce la especificación de la simulación del dispositivo por medio de
   # Proteus, lo retira de la lista de argumentos y prepara throughput_limit
