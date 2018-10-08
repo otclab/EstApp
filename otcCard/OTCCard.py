@@ -309,6 +309,11 @@ class CardParameter(object) :
                 u'Fallo inesperado al modificar el parámetro : %s.'% self.name)
       raise e
 
+  def __len__(self) :
+    """
+    Devuleve el tamaño en bytes del valor representado por CardParameter
+    """
+    return self.size
 
 # TODO Agregar formato del valor escalado, con capacidad de representar el
 # TODO Mejorar la redacción de __doc__
