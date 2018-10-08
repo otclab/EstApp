@@ -5,7 +5,7 @@
 #   - Se corrige la interpretación de los formatos 'g' y 'j' en el método '_unpack'.
   
 import struct
-
+import math
 
 class ext_struct(object) :
   # Diccionario de las longitudes de cada tipo de formato :
@@ -13,17 +13,18 @@ class ext_struct(object) :
              'l':4, 'L':4, 'q':8, 'Q':8, 'f':4, 'F':3, 'd':8, 's':1,
              'g':3, 'G':3, 'J':5, 'j':5 }
              
-  fmt_base = {'G': 'L', 'J' : 'Q'}
+  fmt_base = {'F' : 'L', 'G': 'L', 'J' : 'Q'}
 
   @staticmethod
   def __pack(b_order, fmt, val) :
     if fmt in 'xcbB?hHiIlLqQnNefdspq' :
       return struct.pack(b_order + fmt, val)
 
-    if not isinstance(val, (int)) :
-      raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
-      
+
     if fmt in ['g', 'j'] :
+      if not isinstance(val, (int)) :
+        raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
+
       fmt = fmt.upper()
       
       if (val < 0) :
@@ -33,6 +34,9 @@ class ext_struct(object) :
         raise ValueError('argument out of range')
         
     if fmt in ['G', 'J'] : 
+      if not isinstance(val, (int)) :
+        raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
+
       if  (val < 0) or (val >= 2**(8*fmt_len[fmt])) :
         raise ValueError('argument out of range')
         
@@ -44,8 +48,40 @@ class ext_struct(object) :
         
       else :
         raise ValueError('ext_struct : El orden de los bytes en los formato de números de 24 bits y 40 bits debe especificarse explicitamente.')
-     
-     
+
+    if fmt == 'F' :
+      """ Formato de 24 bits de Microchip :  
+                  eeeeeeee sccccccc cccccccc
+                  
+          representa al número
+                  N = ((s == 0)? 0 : 1) * (1 + c/32768) *2^(e - 127)        
+          donde s, e y c representan :
+             s el signo :  s = 1 if N<0 else 0 
+             e el exponente sesgado  = floor(log2(|N|) + 127
+             c el coeficiente        = round( |N|/2^(e-127) - 1 )
+               
+          El número cero se representa por 0x000000.  
+      """
+      if not isinstance(val, (int, float)) :
+        raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
+
+      if (val < 2 **(-127) * 32767) or (val > 2**(128) * 32767) :
+        raise ValueError('argument out of range')
+
+      if val == 0 :
+         exp, sig, coeff = (0,0,0)
+      else :
+        if val < 0  :
+          sig = 0x8000
+          val = -val
+        else :
+          sig = 0
+
+        exp = int(math.floor(math.log2(val))) + 127
+        coeff = int((val/2**(exp - 127) - 1)*32768 + 0.5)
+
+      return struct.pack('<I', exp*65536 + sig*32768 + coeff)[:3]
+
     raise ValueError('ext_struct : El formato no es reconocido.')     
 
    
@@ -93,26 +129,44 @@ class ext_struct(object) :
   def __unpack(b_order, fmt, packed_bytes) :
     if fmt in 'xcbB?hHiIlLqQnNefdspq' :
       return struct.unpack(b_order + fmt, packed_bytes)
-      
+
     if b_order == '>' :
-      packed_bytes =  (ext_struct.fmt_len[ext_struct.fmt_base[fmt.upper()]] - ext_struct.fmt_len[fmt])*b'\x00' + packed_bytes 
+      packed_bytes =  (ext_struct.fmt_len[ext_struct.fmt_base[fmt.upper()]] - ext_struct.fmt_len[fmt])*b'\x00' + packed_bytes
     elif b_order == '<' :
       packed_bytes +=  (ext_struct.fmt_len[ext_struct.fmt_base[fmt.upper()]] - ext_struct.fmt_len[fmt])*b'\x00'
     else :
       raise ValueError('ext_struct : El orden de los bytes en los formato de números de 24 bits y 40 bits debe especificarse explicitamente.')
-    
+
+    if fmt == 'F' :
+      """ Formato de 24 bits de Microchip :  
+                  eeeeeeee sccccccc cccccccc
+
+          representa al número
+                  N = ((s == 0)? 0 : 1) * (1 + c/32768) *2^(e - 127)        
+          donde s, e y c representan :
+             s el signo :  s = 1 if N<0 else 0 
+             e el exponente sesgado  = floor(log2(|N|) + 127
+             c el coeficiente        = round( |N|/2^(e-127) - 1 )
+
+          El número cero se represnta po 0x000000.  
+      """
+      if b_order == '>' :
+        tmp = packed_bytes[2]
+        packed_bytes[2] = packed_bytes[0]
+        packed_bytes[0] = tmp
+
+      sig = 1 if packed_bytes[1] < 128 else -1
+      val = (sig * (32768 + (0x7F & packed_bytes[1])*256 + packed_bytes[0])/32768 * 2 ** (packed_bytes[2] - 127),)
+
+      return val
+
+    # Formatos g/G y j/J :
     val = struct.unpack(b_order + ext_struct.fmt_base[fmt.upper()], packed_bytes)
 
     if fmt in ['g', 'j'] :
-      val = val[0]
-      if val >= 2**(8*ext_struct.fmt_len[fmt] - 1) :
-        val -= 256**(ext_struct.fmt_len[fmt])
-        
-      if (val < 0) or (val >= 2**(8*ext_struct.fmt_len[fmt] - 1)) :
-        raise ValueError('argument out of range')
+      if val[0] >= 2**(8*ext_struct.fmt_len[fmt] - 1) :
+        val = (val[0] - 256**(ext_struct.fmt_len[fmt]), )
 
-      val = (val,)
-      
     return val
        
   
@@ -188,127 +242,4 @@ class ext_struct(object) :
       _fmt = _fmt[1:]
       
     return c_size
-
-
-
-
-  
-  
-#  @staticmethod
-#  def pack(fmt, *val) :
-#    # Se asegura que val sea una tupla :
-#    if not isinstance(val, tuple) : val = (val,)
-#
-#    # Se reconoce el orden de la conversión a bytes :
-#    if fmt[0] in ['<', '>'] :
-#      _fmt = fmt[1:]
-#      f0   = fmt[0]
-#    else :
-#      _fmt = fmt
-#      f0   = ''
-#
-#    # Se procesas los formatos 'g' y 'G' (entero de 24 bits).
-#
-#    # Se utiliza el formato I eliminando el primer o último byte dependiendo
-#    # del ordenamiento :
-#    if f0 == '>' :
-#      g_bytes = lambda x : tuple([s for s in struct.pack(f0+'I', x)[1:]])
-#    else :
-#      g_bytes = lambda x : tuple([s for s in struct.pack(f0+'I', x)[:-1]])
-#
-#    # El procedimiento consiste en reemplazar las apariciones de 'g' y 'G'
-#    # por 'ccc' en el formato y por su descomposición en bytes en val :
-#    end = len(_fmt)
-#    while (1):
-#      # El reemplazo se realiza desde la derecha hacia la izquierda, ya que de
-#      # esta forma los índices de las siguientes reemplazos :
-#      end = max(_fmt.rfind('g', 0, end), _fmt.rfind('G', 0, end))
-#
-#      if end < 0 : break
-#
-#      # Si se utiliza el formato con signo, se convierte a su complemento a 2 :
-#      _val = val[end]
-#      if (_fmt[end] == 'g') and (val[end] <  0) :
-#          _val = 2**24 + val[end]
-#
-#      val = val[:end] + g_bytes(_val) + val[end+1:]
-#      _fmt = _fmt[:end] + 'ccc' + _fmt[end+1:]
-#
-#    # se procesa el formato F (coma flotante de 24 bits).
-#
-#    # Se utiliza el formato L eliminando el primer o último byte dependiendo
-#    # del ordenamiento :
-#    if f0 == '>' :
-#      F_bytes = lambda x : tuple([s for s in struct.pack(f0+'L', x)[:-1]])
-#    else :
-#      F_bytes = lambda x : tuple([s for s in struct.pack(f0+'L', x)[1:]])
-#
-#    # El procedimiento consiste en reemplazar las apariciones de 'F' por
-#    # por 'ccc' en el formato y por su descomposición en bytes en val :
-#    end = len(_fmt)
-#    while (1):
-#      end = _fmt.rfind('F', 0, end)
-#
-#      if end < 0 : break
-#
-#      val = val[:end] + F_bytes(val[end]) + val[end+1:]
-#      _fmt = _fmt[:end] + 'ccc' + _fmt[end+1:]
-#
-#    # Finalmente se puede utilizar la función de empaquetado estándar de struct:
-#    return struct.pack(f0 + _fmt, *val)
-#
-#
-#  @staticmethod
-#  def unpack(fmt, str) :
-#    # Se reconoce el ordenamiento :
-#    if fmt[0] in ['<', '>'] :
-#      fmt = fmt[1:]
-#      f0  = fmt[0]
-#    else :
-#      f0  = ''
-#
-#    # Los formatos (adicionales) de 24 bits se reemplazan por 'ccc' :
-#    _fmt = fmt.replace('g', 'ccc')
-#    _fmt = _fmt.replace('G', 'ccc')
-#    _fmt = _fmt.replace('F', 'ccc')
-#
-#    val = struct.unpack('<'+_fmt, str) # list(struct.unpack(_fmt, str))
-#    start = 0
-#    while (1) :
-#      idx = [n for n in [fmt.find('g', start), fmt.find('G', start), fmt.find('F', start)] if n >= 0]
-#
-#      if idx == [] : break ;
-#      start = min(idx)
-#
-#      if start is None : break
-#
-#      val_chr = val[start:start+3]
-#
-#      if f0 == '>' : val_chr.reverse()
-#
-#      if fmt[start] == 'g' :
-#        if ord(val_chr[2]) > 127 :
-#         _val = struct.unpack('<i', ''.join(val_chr) + '\xFF')
-#        else :
-#         _val = struct.unpack('<i', ''.join(val_chr) + '\x00')
-#
-#      elif fmt[start] == 'G' :
-#        _val = struct.unpack('<I', ''.join(val_chr) + '\x00')
-#
-#      else : # solo puede ser _fmt[start] == 'F'
-#        _val = struct.unpack('<f', '\x00' + ''.join(val_chr))
-#
-#      val = val[:start] + _val + val[start+3:]
-#      start +=1
-#
-#    return tuple(val)
-#
-#
-#  @staticmethod
-#  def calcsize(fmt) :
-#    _fmt = fmt.replace('g', 'ccc')
-#    _fmt = _fmt.replace('G', 'ccc')
-#    _fmt = _fmt.replace('F', 'ccc')
-#
-#    return struct.calcsize(_fmt)
 
