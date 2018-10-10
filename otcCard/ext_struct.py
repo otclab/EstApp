@@ -1,6 +1,14 @@
-﻿#!/usr/bin/python
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+# Versión 1.04
+#   - Se reasigna el formato de punto flotante de Microchip de 'F' por 'M', y se asigna
+#     el formato 'F' al de punto flotante IEE754
+#
+# Versión 1.03
+#   - Se completa el soporte del formato 'F' correspondiente al formato utilizado por 
+#     Microchip para los numeros en formato de punto flotante de 24 bis.
+#
 # Versión 1.02
 #   - Se corrige la interpretación de los formatos 'g' y 'j' en el método '_unpack'.
   
@@ -10,10 +18,10 @@ import math
 class ext_struct(object) :
   # Diccionario de las longitudes de cada tipo de formato :
   fmt_len = {'x':1, 'c':1, 'b':1, 'B':1, '?':1, 'h':2, 'H':2, 'i':4, 'I':4,
-             'l':4, 'L':4, 'q':8, 'Q':8, 'f':4, 'F':3, 'd':8, 's':1,
+             'l':4, 'L':4, 'q':8, 'Q':8, 'f':4, 'F':3, 'M':3, 'd':8, 's':1,
              'g':3, 'G':3, 'J':5, 'j':5 }
              
-  fmt_base = {'F' : 'L', 'G': 'L', 'J' : 'Q'}
+  fmt_base = {'F' : 'L', 'M' : 'L', 'G': 'L', 'J' : 'Q'}
 
   @staticmethod
   def __pack(b_order, fmt, val) :
@@ -49,7 +57,7 @@ class ext_struct(object) :
       else :
         raise ValueError('ext_struct : El orden de los bytes en los formato de números de 24 bits y 40 bits debe especificarse explicitamente.')
 
-    if fmt == 'F' :
+    if fmt == 'M' :
       """ Formato de 24 bits de Microchip :  
                   eeeeeeee sccccccc cccccccc
                   
@@ -63,7 +71,7 @@ class ext_struct(object) :
           El número cero se representa por 0x000000.  
       """
       if not isinstance(val, (int, float)) :
-        raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
+        raise ValueError("ext_struct : El formato 'F' admite numeros enteros o de punto flotante.")
 
       if (val < 2 **(-127) * 32767) or (val > 2**(128) * 32767) :
         raise ValueError('argument out of range')
@@ -72,7 +80,7 @@ class ext_struct(object) :
          exp, sig, coeff = (0,0,0)
       else :
         if val < 0  :
-          sig = 0x8000
+          sig = 1
           val = -val
         else :
           sig = 0
@@ -81,6 +89,39 @@ class ext_struct(object) :
         coeff = int((val/2**(exp - 127) - 1)*32768 + 0.5)
 
       return struct.pack('<I', exp*65536 + sig*32768 + coeff)[:3]
+    
+    if fmt == 'F' :
+      """ Formato de 24 bits IEE754 :  
+                  seeeeeee eccccccc cccccccc
+                  
+          representa al número
+                  N = ((s == 0)? 0 : 1) * (1 + c/32768) *2^(e - 127)        
+          donde s, e y c representan :
+             s el signo :  s = 1 if N<0 else 0 
+             e el exponente sesgado  = floor(log2(|N|) + 127
+             c el coeficiente        = round( |N|/2^(e-127) - 1 )
+               
+          El número cero se representa por 0x000000.  
+      """
+      if not isinstance(val, (int, float)) :
+        raise ValueError("ext_struct : El formato 'M' admite numeros enteros o de punto flotante.")
+
+      if (val < 2 **(-127) * 32767) or (val > 2**(128) * 32767) :
+        raise ValueError('argument out of range')
+
+      if val == 0 :
+         exp, sig, coeff = (0,0,0)
+      else :
+        if val < 0  :
+          sig = 1
+          val = -val
+        else :
+          sig = 0
+
+        exp = int(math.floor(math.log2(val))) + 127
+        coeff = int((val/2**(exp - 127) - 1)*32768 + 0.5)
+
+      return struct.pack('<I', exp*32768 + sig*128*65536 + coeff)[:3]
 
     raise ValueError('ext_struct : El formato no es reconocido.')     
 
@@ -137,7 +178,7 @@ class ext_struct(object) :
     else :
       raise ValueError('ext_struct : El orden de los bytes en los formato de números de 24 bits y 40 bits debe especificarse explicitamente.')
 
-    if fmt == 'F' :
+    if fmt == 'M' :
       """ Formato de 24 bits de Microchip :  
                   eeeeeeee sccccccc cccccccc
 
@@ -156,7 +197,36 @@ class ext_struct(object) :
         packed_bytes[0] = tmp
 
       sig = 1 if packed_bytes[1] < 128 else -1
-      val = (sig * (32768 + (0x7F & packed_bytes[1])*256 + packed_bytes[0])/32768 * 2 ** (packed_bytes[2] - 127),)
+      exp = packed_bytes[2] - 127
+      coeff = 1 + ((0x7F & packed_bytes[1])*256 +  packed_bytes[0])/32768
+    
+      val = (sig*coeff*2**(exp) ,)
+
+      return val
+
+    if fmt == 'F' :
+      """ Formato de 24 bits IEE754 :  
+                  seeeeeee eccccccc cccccccc
+                  
+          representa al número
+                  N = ((s == 0)? 0 : 1) * (1 + c/32768) *2^(e - 127)        
+          donde s, e y c representan :
+             s el signo :  s = 1 if N<0 else 0 
+             e el exponente sesgado  = floor(log2(|N|) + 127
+             c el coeficiente        = round( |N|/2^(e-127) - 1 )
+               
+          El número cero se representa por 0x000000.  
+      """
+      if b_order == '>' :
+        tmp = packed_bytes[2]
+        packed_bytes[2] = packed_bytes[0]
+        packed_bytes[0] = tmp
+
+      sig = 1 if packed_bytes[2] < 128 else -1
+      exp = (0x7F & packed_bytes[2])*2 + (1 if packed_bytes[1] > 127 else 0) - 127
+      coeff = 1 + ((0x7F & packed_bytes[1])*256 +  packed_bytes[0])/32768
+      
+      val = (sig*coeff*2**(exp) ,)
 
       return val
 
