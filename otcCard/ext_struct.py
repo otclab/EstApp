@@ -1,6 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+# Versión 1.05
+# Se corrige la invocación de fmt_len, sin incluir la clase.
+#
 # Versión 1.04
 #   - Se reasigna el formato de punto flotante de Microchip de 'F' por 'M', y se asigna
 #     el formato 'F' al de punto flotante IEE754
@@ -36,23 +39,23 @@ class ext_struct(object) :
       fmt = fmt.upper()
       
       if (val < 0) :
-        val += 256**(fmt_len[fmt]) + val
+        val += 256**(ext_struct.fmt_len[fmt]) + val
         
-      if (val < 0) or (val >= 2**(8*fmt_len[fmt] - 1)) :
+      if (val < 0) or (val >= 2**(8*ext_struct.fmt_len[fmt] - 1)) :
         raise ValueError('argument out of range')
         
     if fmt in ['G', 'J'] : 
       if not isinstance(val, (int)) :
         raise ValueError('ext_struct : Los formatos g/G y j/J solo admiten argumentos instancias de int.')
 
-      if  (val < 0) or (val >= 2**(8*fmt_len[fmt])) :
+      if  (val < 0) or (val >= 2**(8*ext_struct.fmt_len[fmt])) :
         raise ValueError('argument out of range')
         
       if b_order  == '>' :
-        return struct.pack(b_order + fmt_base[fmt], val) #[fmt_len[fmt_base[fmt]] - fmt_len[fmt] : ]
+        return struct.pack(b_order + ext_struct.fmt_base[fmt], val) #[fmt_len[fmt_base[fmt]] - fmt_len[fmt] : ]
        
       elif b_order == '<' :
-        return struct.pack(b_order + fmt_base[fmt], val)[ : fmt_len[fmt] - fmt_len[fmt_base[fmt]]]
+        return struct.pack(b_order + ext_struct.fmt_base[fmt], val)[ : ext_struct.fmt_len[fmt] - ext_struct.fmt_len[ext_struct.fmt_base[fmt]]]
         
       else :
         raise ValueError('ext_struct : El orden de los bytes en los formato de números de 24 bits y 40 bits debe especificarse explicitamente.')
