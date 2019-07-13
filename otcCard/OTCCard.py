@@ -3,6 +3,19 @@
 
 __author__ = 'Oscar'
 
+# Versión 1.0.4, 26/01/2018
+# Se refina CardParameter.__doc__
+#
+# Versión 1.0.3, 11/10/2018
+#  Se define CardParameterList para representar una lista
+#  de parámetros CardParameter contiguos.
+#
+# Versión 1.0.2, 10/10/2018
+#  Se refina el valor de contención de CardParameter, para
+#  representar correctamente los valores en punto flotante
+#  a esar de su redondeo.
+
+
 from otcCard.ext_struct import ext_struct
 from weakref import WeakKeyDictionary
 from otcCard.OTCProtocol import *
@@ -108,7 +121,7 @@ class CardParameter(object) :
   y/o __set__), sus instancias deben pertenecer a una CLASE para operar como
   se espera (y no a una instancia de una clase, aunque python no impide su
   acceso desde estas). La instancia de esta CLASE debe ser o contener un
-  atributo denomindo card, que debe ser una subclase de OTCCard.
+  atributo denominado card, que debe ser una subclase de OTCCard.
 
   El nombre se utiliza para propósitos administrativos durante el reporte de
   depuración, el formato especifica la forma como se interpreta la secuencia
@@ -119,18 +132,13 @@ class CardParameter(object) :
   para almacenar su valor y evitar el uso del interfaz de comunicación cada
   vez que se solicite su valor.
 
-  Por razones de flexibilidad el formato del parámetro (fmt) que permite
-  identificar sus componentes sigue las mismas reglas que las del módulo
-  'struct'. Salvo 4 excepciones, si se especifica fmt como :
-    'byte' : Identifica un entero en el rango de 0 a 255, aka. BYTE
-             también es equivalente al formato '<B'.
-    'word' : Identifica un entero en el rango de 0 a 65535, aka. WORD
-             o unsigned int, también es equivalente al formato '<H'.
-  por otro lado el carácter de formato 's' tiene el mismo uso para
-  identificar cadenas de caracteres, sin embargo la cadena se trunca
-  hasta el primer carácter NUL ('\x00'). Finalmente se introduce el carácter
-  de formato 'S' por el cual se identifica el componente como una secuencia
-  (lista) de bytes (de la longitud especificada por el numeral que lo precede).
+  En general el formato del parámetro (fmt) sigue las reglas definidas por el
+  módulo ext_struct (que es una extensión del módulo estándar struct), el cual
+  admite formatos numéricos de 24 y 40 bits. Opcionalmente cuando son valores
+  simples (solo se encapsula un valor), se pueden utilizar las palabras
+  'byte', 'word', 'dword', las definiciones de los enteros del módulo stdint.c,
+   y los formatos adhoc de 40 bits 'uint40_t'/'int40_t'.
+  
   """
   # TODO Revisar los formatos byte, word y S
   def __init__(self, adr, fmt, name, typ = 'normal') :
@@ -272,10 +280,18 @@ class CardParameter(object) :
         val = val[0]
     else :
       val = (val,)
-      
+
     try :
       # Se codifica val en una cadena de caracteres :
       val_str = ext_struct.pack(self.fmt, *val)
+
+      # Se memoriza el último valor del parámetro (En razón de evitar el uso
+      # del interfaz ante sub-siguientes operaciones de lectura) y en razón que
+      # los números en punto flotante son afectados por el redondeo se prefiere
+      # reconstruir los valores desde la cadena de bytes :
+      self.value[card] = ext_struct.unpack(self.fmt, val_str)
+      if len(self.value[card]) == 1 :
+        self.value[card] = self.value[card][0]
 
       # Se actualiza el valor del parámetro en el dispositivo remoto,
       # en segmentos limitados  en las frontera de 16 bytes :
@@ -286,16 +302,9 @@ class CardParameter(object) :
         substr_adr += substr_len
         val_str = val_str[substr_len:]
 
-      #for n in range(0, len(val_str), 16) :
-      #   card.dev.setData(self.adr + n, val_str[n : n+16])
-
       # En este punto self.value es una tupla, tipo que es inconveniente cuando
       # solo existe un solo valor, y se requiere manipularlo directamente :
       if len(val) == 1 : val = val[0]
-
-      # Se memoriza el último valor del parámetro (En razón de evitar el uso
-      # del interfaz ante sub-siguientes operaciones de lectura) :
-      self.value[card] = val
 
       card.log.debug (u"Escritura del parámetro '%s' exitosa." %self.name)
       return
@@ -315,6 +324,28 @@ class CardParameter(object) :
     """
     return self.size
 
+
+class CardParameterList(list) :
+  '''
+  Encapsula una lista de parámetros del tipo CardParameter contiguos.
+  '''
+  def __init__(self, adr, fmt, name_pattern, length, typ = 'normal') :
+    self.name_pattern = name_pattern
+    super().__init__
+    for n in range(length) :
+      self.append(CardParameter(adr + n*ext_struct.calcsize(fmt), fmt,
+                                                 name_pattern.format(n)), typ)
+
+  def __getitem__(self, item) :
+    return super().__getitem__(item).__get__(self, None)
+
+  def __setitem__(self, item, value) :
+    return super().__getitem__(item).__set__(self, value)
+
+  def __len__(self) :
+    return sum([len(e) for e in self])
+
+    
 # TODO Agregar formato del valor escalado, con capacidad de representar el
 # TODO Mejorar la redacción de __doc__
 # escalado y -opcionalmente-  el interno.
@@ -429,5 +460,3 @@ class ScaledParameter(object) :
         return self.fmt(this)
 
     return __FloatParameter(remote_value)
-
-

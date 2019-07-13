@@ -197,23 +197,26 @@ class MeasureTask(threading.Thread) :
     report.consoleSetLevel(logging.CRITICAL)
 
     try :
-      while (self.started and (err_cnt < 10)) :
+      while (self.started and (err_cnt < 5)) :
         try :
           record_measure = self.card._measure_record
 
           self.card.LN.add(record_measure[1])
           self.card.UV.add(record_measure[2])
-          self.err_cnt = 0
 
-          # Retira el elemento mas antiguo de la cola se esta llena :
+          # Retira el elemento mas antiguo de la cola si esta llena :
           if self.queue.full() : self.queue.get()
 
           self.queue.put(record_measure)
 
+          if err_cnt > 0 :
+            err_cnt -= 0.1
+
         except OTCProtocolError as e :
           err_cnt += 1
 
-    except :
+    except Exception as e :
+       print('error', e)
        report.consoleSetLevel(logging.ERROR)
        self.error = 'Fallo inesperado durante la Medición.'
        self.card.log.critical(u'Fallo inesperado durante la Medición.')
@@ -226,7 +229,7 @@ class MeasureTask(threading.Thread) :
 
       self.card.log.debug('Measure Thread has stoped')
 
-      if err_cnt >= 10 :
+      if err_cnt >= 5 :
         self.error = 'Fallo la Medición, demasiados errores.'
         self.card.log.critical('Fallo la Medición, demasiados errores.')
 
@@ -438,6 +441,8 @@ class EstCard1V0(OTCCard) :
   rdAdr                  = 0xF089
   vrefAdr                = 0xF075
 
+  tapOrderAdr            = 0xF080
+
   # TODO A estas direcciones de RAM deben asignarse direcciones virtuales :
   _tapStatus = CardParameter(tapStatusAdr , '<H', u'Tap Activo')
   #_tapsFlags = CardParameter(0xE076, '<B', u'Tap Flags')
@@ -457,6 +462,9 @@ class EstCard1V0(OTCCard) :
                                      '<H', 'Tiempo de Apagado por Subtensión')
   _overVoltageTurnOff  = CardParameter(overVoltageTurnOffAdr ,
                                    '<H', 'Tiempo de Apagado por Sobretensión')
+
+  # Orden de los Taps :
+  tapOrder = CardParameter(tapOrderAdr, '<12B', u'Orden de los Taps ')
 
   # Rango de Taps Operativos :
   _tapsOpRange = CardParameter(tapsOpRangeAdr, '<B', 'Taps Utilizados')
@@ -506,7 +514,9 @@ class EstCard1V0(OTCCard) :
                'EstCard 24V0' : 6  , 'EstCard 20V1'     : 8 , 'EstCard 6V1'  : 5 ,
                'EstCard 27V0' : 6  , 'EstCard 2V5'      : 10, 'EstCard 2V5x' : 10,
                'EstCard 21V0' : 4  , 'EstCard 10V0'     : 6 , 'EstCard 22V0' : 10,
-               'EstCard 31V0' : 10 , 'EstCard 23V2'     : 10 }
+               'EstCard 31V0' : 10 , 'EstCard 23V2'     : 10, 'EstCard 5V3'  :  5,
+               'EstCard 5V5'  : 5  , 'EstCard 5V7'      : 5 , 'EstCard 33V0' :  7, 
+               'EstCard 16V7' : 6  , 'EstCard 28V0'     : 9 ,}
 
   # Contenido total de la EEPROM :
   _eepromLow  = CardParameter(eepromAdr, '<128B', 'Mitad baja de la EEPROM')

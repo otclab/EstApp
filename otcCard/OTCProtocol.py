@@ -44,7 +44,7 @@ PRODUCTION_DATE_SIZE   = 0x0006
 def com_list() : return SerialDevice.com_list()
 
 
-class OTCProtocolError(Exception) :
+class OTCProtocolErrorX(Exception) :
    def __init__(self, msg, cause = None, obj = None) :
       self.msg = msg
       Exception.__init__(self, msg)
@@ -59,20 +59,126 @@ class OTCProtocolError(Exception) :
          self.msg += u'\nrazón : %s' % cause.__str__()
 
       if obj : obj.log.error(msg)
-      
+
       self.message = self.msg
 
 
 class OTCProtocol :
    u"""
-   Protocolo de comunicaciones para micro-controladores con interfaz serie,
-   adaptado para la lectura y escritura de su diferentes tipos de memoria.
-   El espacio de memoria esta identificado por su dirección de 16 bits y
-   puede ser del tipo RAM, FLASH o EEPROM, siendo responsabilidad del
-   dispositivo realizar la asignación real de los espacios/tipos de
-   memoria.
-   """
+   Adopta un puerto serie de comunicaciones y regula la comunicación por medio
+   de el bajo las reglas del protocolo OTCProtocol.
 
+   OTCProtocol
+     El uso del protocolo esta destinado a fijar (orden SET) u obtener (orden
+     GET) los valores de posiciones de memoria en el dispositivo remoto.
+
+     Las ordenes solo se originan desde el maestro (PC) y debe ser respondida
+     por el remoto obligatoriamente. El maestro debe esperar por la respuesta
+     antes de emitir una nueva orden al menos un tiempo límite, después del
+     cual (el método correspondiente) genera una excepción. El maestro debe
+     enviar la orden con un tiempo límite entre caracteres, de lo contrario
+     el remoto puede ignorar la orden.
+
+     Las ordenes y respuestas constan de un número entero de bytes, el primer
+     byte de una orden es su identificador y solo toma los valores 'S', 'G' o
+     'X' asignados respectivamente a las ordenes SET, GET y EXIT, por otro
+     lado el valor del byte final de una respuesta es b'\x15'(NACK) o b'\x17'
+     (ACK) según rechaze la orden o la acepte.
+
+     Los valores anteriores son únicos en su función y deben ser reemplazados
+     por secuencias de escape si aparecen como parte de la orden y/o respuesta,
+     la traducción implica tambien al valor de la secuencia de escape (b'\x1B').
+
+     Esto permite resincronizar (en caso de perdida) la comunicación al
+     identificar el inicio de una orden y el final de una respuesta.
+
+     La orden SET consta de un primer byte 'S', seguido de dos bytes que definen
+     la dirección (codificada en litle endian), un cuarto byte que define el
+     número de bytes a fijar a partir de la dirección dada, luego siguen la
+     cantidad de bytes definida en el cuarto byte. La respuesta es simplemente
+     1 byte, el de respuesta (ACK o NACK).
+
+     La orden GET consta de un primer byte 'S', seguido de dos bytes que definen
+     la dirección (codificada en litle endian), un cuarto byte que define el
+     número de bytes a leer desde la dirección dada. La respuesta debe contener
+     el número de bytes requerido, con el byte final de confirmación ACK,
+     alternativamnte la respuesta puede ser NACK (inclusive si trasmite
+     parcialmente los bytes leidos).
+
+     La orden EXIT nunca fue implenetada en el remoto, su aplicación o
+     elaboración queda abierta.
+
+
+     Reflexión
+     En la practica el protocolo se debío re-interpretar, la noción de 'dirección'
+     resulto inconveniente, pues la memoria no era única, existen diferentes tipos
+     con su propia numeración, particularmente debe prohibirse para casi todo la
+     memoria Flash su lectura y escritura, finalmente en los modelos mas recientes
+     se sobrepasa el rango de 65536 bytes impuestos por el protocolo.
+
+     En un primer momento se segmento el espacio de direcciones, para asignarla
+     a los diferentes tipos de memoria, inmediatamnete se debio solucionar la
+     variablilidad del alojamieto de las variables/valores de interes por el
+     compilador.
+
+     En todo caso se relego al microcontrolador remoto, la interpretación de las
+     ordenes, en lugar de proliferar el protocolo con un número mayor de ordenes
+     para cada caso, despues de todo las operaciones se reumen básicamente al
+     envío de datos y a la recepción de estos al y desde el remoto, i.e. las
+     operaciones SET y GET.
+
+   """
+   def __init__(self, comm_name, throughput_limit = False) :
+      u"""
+      Toma control del puerto serie comm_name y lo prepara para la comunicación.
+      """
+
+      # Cuando comm_name es None, solo después de abrir el puerto (caso de
+      # puertos Bluetooth en Android) se puede nominar el manejador de
+      # reportes, mientras tanto se asigna provicionalmente :
+      self.log = report.getLogger(u'OTCProtocol.' +
+               (u'*OPPENING_IN_PROGRESS*' if comm_name is None else comm_name))
+
+      # La instancia de la clase puede ser utilizada por mas de un hilo de
+      # ejecución, por lo que tanto se utiliza un objeto Lock(), para prevenir
+      # conflictos, en los métodos  públicos de escritura y lectura (SetData()
+      # y GetData()) :
+      self._lock = threading.Lock()
+
+      # Cuando se utiliza el simulador de Proteus es necesario limitar el
+      # volumen de datos a transmitir, se define el atributo throughput_limit
+      # para definir si se limita o no el volumen de datos :
+      self.throughput_limit = throughput_limit
+
+      with self._lock :
+         # Puerto serie utilizado para la comunicación :
+         self.__comm = SerialDevice()
+
+         # Se definen los parámetros de operación del puerto serie :
+         self.__comm.port     = comm_name
+         self.__comm.baudrate = 57600
+         self.__comm.bytesize = 8
+         self.__comm.parity   = 'N'
+         self.__comm.timeout  = 0.5
+         self.__xmitTimeout   = 0.5
+         self.__comm.stopbits = 1
+         self.__comm.xonxoff  = 0
+         self.__comm.rtscts   = 0
+         self.__comm.dsrdtr   = 0
+
+         # Se abre el puerto serie :
+         self.log.debug(u'Abriendo el puerto serie : %s', str(self.__comm))
+
+         self.__comm.open()
+         if comm_name == u'*OPPENING_IN_PROGRESS*' :
+            comm_name = self.__comm.port
+            # Ahor aa se puede identificar el manejador de reportes :
+            self.log = report.getLogger(u'OTCProtocol.' + comm_name)
+
+         self.log.debug(u'El puerto %s esta preparado para la comunicación.'\
+                                                          % self.__comm.port)
+
+      self._cnt_bytes = 0  
 
    def __xmit(self, data) :
       u"""
@@ -85,7 +191,7 @@ class OTCProtocol :
          self.__comm.write(data)
          if self.throughput_limit :
             sleep(0.05)
-         
+
       except OTCProtocolError as e:
          raise OTCProtocolError(u'Fallo de Transmisión (timeout).', e, self)
 
@@ -94,15 +200,17 @@ class OTCProtocol :
       """
       Espera por la recepción de 1 byte desde el dispositivo.
       """
+      from time import  sleep
       self.log.debug('Recibiendo (1 byte) ...')
       byte = self.__comm.read(1)
+      self._cnt_bytes+=1
 
       if (byte == b'') or (byte is None) :
          raise OTCProtocolError(u'El dispositivo no responde (timeout).',
                                                                     None, self)
 
-      self.log.debug(u'Se recibió : 0x%s,' %(byte.hex().upper()))
-
+      self.log.debug(u'Se recibió [%d] : 0x%s,' %(self._cnt_bytes, byte.hex().upper()))
+      self.log.debug(u'Queued : %d' %(self.__comm.inWaiting()))
       return byte
 
 
@@ -170,7 +278,7 @@ class OTCProtocol :
                                 u' la recepción (a %d en lugar de %d bytes).'
                                                    % ((i+1), size), None, self)
             data += byte
-            
+
          if not self.__RcveAns() :
             raise OTCProtocolError(u'El dispositivo rechazo la lectura.',
                                                                     None, self)
@@ -191,7 +299,7 @@ class OTCProtocol :
       # antes de enviarla :
       return data_bytes
 
-   
+
    def getData(self, adr, size) :
       u"""
       Lee size bytes desde la dirección adr en el dispositivo y los devuelve
@@ -208,7 +316,7 @@ class OTCProtocol :
 
             # Envía el comando según el protocolo, nótese que se asegura la con-
             #versión a una secuencia de bytes de los parámetros importados :
-            cmd = GET_CHAR + self.__encodeData(struct.pack('<H', adr) 
+            cmd = GET_CHAR + self.__encodeData(struct.pack('<H', adr)
                                                          + struct.pack('<B', size))
             self.__xmit(cmd)
 
@@ -252,7 +360,7 @@ class OTCProtocol :
                   if (data < 0) or (data >= 1099511627776) :
                     raise ValueError('argument out of range')
                     sys.exit()
-                    
+
                   self.log.exception(u'SetData : Tercer argumento '
                                                            u'(mode) inválido.')
             elif isinstance(data, list) :
@@ -278,8 +386,8 @@ class OTCProtocol :
             self.__comm.flushInput()
 
             # Envía el comando según el protocolo, nótese que se asegura la con-
-            # versión a una secuencia de bytes de los parámetros importados y se 
-            # asegura de substituir los caracteres especiales por sus secuencias 
+            # versión a una secuencia de bytes de los parámetros importados y se
+            # asegura de substituir los caracteres especiales por sus secuencias
             # de escape :
             cmd = SET_CHAR + self.__encodeData(struct.pack('<H', adr) + struct.pack('B',
                                                      len(data_bytes)) + data_bytes)
@@ -297,57 +405,3 @@ class OTCProtocol :
    def close(self) :
       self.__comm.close()
       self.log.debug(u'Se cerro el puerto serie : %s', str(self.__comm.port))
-
-
-   def __init__(self, comm_name, throughput_limit = False) :
-      u"""
-      Toma control del puerto serie comm_name e inicia la comunicación
-      con el dispositivo remoto leyendo su identificación.
-      """
-
-      # Cuando comm_name es None, solo después de abrir el puerto (caso de 
-      # puertos Bluetooth en Android) se puede nominar el manejador de
-      # reportes, mientras tanto se asigna provicionalmente :
-      self.log = report.getLogger(u'OTCProtocol.' + 
-               (u'*OPPENING_IN_PROGRESS*' if comm_name is None else comm_name))
-
-      # La instancia de la clase puede ser utilizada por mas de un hilo de 
-      # ejecución, por lo que tanto se utiliza un objeto Lock(), para prevenir 
-      # conflictos, en los métodos  públicos de escritura y lectura (SetData() 
-      # y GetData()) :
-      self._lock = threading.Lock()
-
-      # Cuando se utiliza el simulador de Proteus es necesario limitar el 
-      # volumen de datos a transmitir, se define el atributo throughput_limit
-      # para definir si se limita o no el volumen de datos :
-      self.throughput_limit = throughput_limit
-      
-      with self._lock :
-         # Puerto serie utilizado para la comunicación :
-         self.__comm = SerialDevice()
-
-         # Se definen los parámetros de operación del puerto serie :
-         self.__comm.port     = comm_name
-         self.__comm.baudrate = 57600
-         self.__comm.bytesize = 8
-         self.__comm.parity   = 'N'
-         self.__comm.timeout  = 0.5
-         self.__xmitTimeout   = 0.5
-         self.__comm.stopbits = 1
-         self.__comm.xonxoff  = 0
-         self.__comm.rtscts   = 0
-         self.__comm.dsrdtr   = 0
-
-         # Se abre el puerto serie :
-         self.log.debug(u'Abriendo el puerto serie : %s', str(self.__comm))
-
-         self.__comm.open()
-         if comm_name == u'*OPPENING_IN_PROGRESS*' :
-            comm_name = self.__comm.port
-            # Ahor aa se puede identificar el manejador de reportes :
-            self.log = report.getLogger(u'OTCProtocol.' + comm_name)
-
-         self.log.debug(u'El puerto %s esta preparado para la comunicación.'\
-                                                          % self.__comm.port)
-
-

@@ -7,6 +7,7 @@ from estCard.EstCard import *
 import queue
 import threading
 from datetime import datetime
+from time import sleep
 
 class RecordReadingTask(threading.Thread) :
   def __init__(self, card, filename) :
@@ -50,6 +51,7 @@ class RecordReadingTask(threading.Thread) :
         except :
           print("No se pudo escribir en el archivo de registro.")
           break
+      sleep(0.001)
 
     self.file.close()
 
@@ -99,7 +101,7 @@ def MonCmd(args, port, throughput_limit) :
     while card.measure.is_alive() :
       sleep(1.000)
 
-      # Captutra las lecturas de tensión :
+      # Captura las lecturas de tensión :
       vLN = str(card.LN)
       vUV = str(card.UV)
 

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # IntelHex
+# version 0.0.5
 
 # Formato IntelHex :
 # Esta formado por un secuencia de líneas con el siguiente formato :
@@ -69,7 +70,8 @@
 #  Linear Address Record).
 #
 # Microchip asigna el contenido de la EEPROM a partir de la
-# dirección 0x0001E000, como ejemplo del volcado :
+# dirección 0x0001E000 (para el PIC16, en los pic 12F la EEPROM
+# se inicia desde 0x4200), como ejemplo del volcado :
 #
 # :020000040001F9
 # :10E00000B4000000B4000000B4000000B400000040

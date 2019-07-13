@@ -34,9 +34,9 @@ def OrderingTapCmd(args, port, throughput_limit) :
 
   card = openCard(port, throughput_limit)
 
-  if card.id['software_kernel'] == 'CtrEst 1V0' :
-    print('Error : Orden no válida para esta la versión de programa de la tarjeta.')
-    sys.exit(1)
+  #if card.id['software_kernel'] == 'CtrEst 1V0' :
+  #  print('Error : Orden no válida para esta la versión de programa de la tarjeta.')
+  #  sys.exit(1)
 
   seq_str = lambda x : ' '.join(['{:d}'.format(n) for n in x])
 
@@ -44,11 +44,10 @@ def OrderingTapCmd(args, port, throughput_limit) :
   tap_order = card.tapOrder[:card.tapLimit]
 
   print(' Orden de los Taps :')
-  print(('   %s' % seq_str(std_order)))
-  print(('   %s\n' % seq_str(tap_order)))
+  print(('           %s' % seq_str(std_order)))
+  print(('Anterior   %s' % seq_str(tap_order)))
 
   new_order = [int(n) for n in args[2:]]
-  print(new_order)
   if len(new_order) > 0 :
     if len(new_order) != card.tapLimit :
       print(('Error - El número de taps definido no coincide con el del modelo de tarjeta (%d).' %card.tapLimit))
@@ -63,7 +62,9 @@ def OrderingTapCmd(args, port, throughput_limit) :
 
     else :
       card.tapOrder = new_order + list(range(card.tapLimit+1 , 12 + 1))
+      new_order = card.tapOrder[:card.tapLimit]
 
+      print(('Actual     %s\n' % seq_str(new_order)))
       print('Se cambio el orden de los taps.')
 
   card.close()
