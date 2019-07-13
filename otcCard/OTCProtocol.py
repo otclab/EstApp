@@ -9,7 +9,7 @@ from time import sleep
 from .OTCProtocolError import OTCProtocolError
 import otcCard.SerialDevice as SerialDevice
 from common.report import report
-
+import serial
 
 # Caracteres Especiales :
 
@@ -161,7 +161,7 @@ class OTCProtocol :
          self.__comm.parity   = 'N'
          self.__comm.timeout  = 0.5
          self.__xmitTimeout   = 0.5
-         self.__comm.stopbits = 1
+         self.__comm.stopbits = serial.STOPBITS_TWO
          self.__comm.xonxoff  = 0
          self.__comm.rtscts   = 0
          self.__comm.dsrdtr   = 0
@@ -188,7 +188,17 @@ class OTCProtocol :
       """
       try :
          self.log.debug(u'Trasmitiendo : 0x%s' %data.hex().upper())
-         self.__comm.write(data)
+         
+         # Se debería emitir simplemente 'self.__comm.write(data) ', pero PySerial no honra 
+         # los bits de parada, luego tiene que trasmitirse cada byte despues de su correspondiente 
+         # tiempo de espera :
+         for d in data :
+            self.__comm.write(bytes([d]))
+            sleep(2/self.__comm.baudrate)
+            self.log.debug(u'Trasmitiendo : {!r} {!r}'.format(d, type(d)))
+           
+         self.__comm.flush()
+          
          if self.throughput_limit :
             sleep(0.05)
 
@@ -326,7 +336,6 @@ class OTCProtocol :
             return ans
 
          except OTCProtocolError as e :
-            print("error ;", e)
             raise OTCProtocolError(u'No se pudo obtener el contenido de ' \
                                u'0x%04X / 0x%02X bytes.' %(adr, size), e, self)
 
