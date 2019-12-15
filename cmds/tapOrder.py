@@ -61,8 +61,14 @@ def OrderingTapCmd(args, port, throughput_limit) :
           print(('Error - El número de órden (%d) de los taps esta repetido.' % n))
 
     else :
+      # Se fuerza la desconexión de los Taps de lo contrario la tarjeta activa el nuevo tap sin
+      # desconectar el antiguo :
+      card.EnterRemoteMode()
+      card.set('Tap Activo', 0x0500)
+      
       card.tapOrder = new_order + list(range(card.tapLimit+1 , 12 + 1))
       new_order = card.tapOrder[:card.tapLimit]
+      card.ExitRemoteMode()
 
       print(('Actual     %s\n' % seq_str(new_order)))
       print('Se cambio el orden de los taps.')
