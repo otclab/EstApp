@@ -514,7 +514,7 @@ class EstCard1V0(OTCCard) :
                'EstCard 24V0' : 6  , 'EstCard 20V1'     : 8 , 'EstCard 6V1'  : 5 ,
                'EstCard 27V0' : 6  , 'EstCard 2V5'      : 10, 'EstCard 2V5x' : 10,
                'EstCard 21V0' : 4  , 'EstCard 10V0'     : 6 , 'EstCard 22V0' : 10,
-               'EstCard 31V0' : 10 , 'EstCard 23V2'     : 10, 'EstCard 5V3'  :  5,
+               'EstCard 31V0' : 9  , 'EstCard 23V2'     : 10, 'EstCard 5V3'  :  5,
                'EstCard 5V5'  : 5  , 'EstCard 5V7'      : 5 , 'EstCard 33V0' :  7, 
                'EstCard 16V7' : 6  , 'EstCard 28V0'     : 9 ,}
 
@@ -663,12 +663,8 @@ class EstCard1V0(OTCCard) :
                              card.get('Ganancia Fase %s - Neutro' %self.input))
 
         rms = self.card.LN.rms if input == 'L' else self.card.UV.rms
-        print('rms : ', rms)
-        print('ref : ', ref)
-        print('self.old.bin : ', self.old.internal)
         self.new = self.card.calibration_factor(input, effective = rms/ ref *
                                                              self.old.effective)
-        #* \ self.old.internal)
 
       def commit(self):
         self.card.set('Ganancia Fase %s - Neutro' %self.input, self.new.internal)

@@ -103,10 +103,11 @@ def Measuring(card, phase, start_count_down = 0, length_count_down = 10, ref_mea
   print('\nResumen de la medición :\n    ', end=' ')
   print('[L-N] %s, ' % card.LN, end=' ')
   if (phase == 'L') or (type(card) == EstCard1V0) :
-    print('[U-V] %s, ' % card.UV)
+    print('[U-V] %s, ' % card.UV, end=' ')
   else :
-    print('[%s-N] %s, ' % (phase, card.UV))
+    print('[%s-N] %s, ' % (phase, card.UV), end=' ')
 
+  print(' [REF] %7.2f' %ref_measure.avg)
 
 def CalCmd(args, port, throughput_limit) :
   """
