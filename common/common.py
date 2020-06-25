@@ -73,7 +73,6 @@ def parsePort(args, required = []) :
     return (port, args)
 
   except :
-    print(args)
     if (len(args) < 2) or (not args[1] in required) :
       return (None, args)
 
@@ -100,7 +99,7 @@ def parsePort(args, required = []) :
 
        while True :
          try :
-           ans = (input(u'\nIndice del puerto serie ? ')).decode(sys.stdin.encoding)
+           ans = input(u'\nIndice del puerto serie ? ')
            ans = int(ans) - 1
            if (ans >= 0) and (ans < len(ports)) :
              break

@@ -231,6 +231,9 @@ def main(args) :
   elif args[1] == '-o' :
     OrderingTapCmd(args, port, throughput_limit)
 
+  else:
+    print("'{:s}' orden desconocida.".format(args[1]))
+
 if __name__ == '__main__' :
   # Las excepciones causadas por errores de comunicación (OTCProtocolError) se
   # se reportan en la consola directamente por el sistema de reporte (logger),
