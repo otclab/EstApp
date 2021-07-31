@@ -107,7 +107,8 @@ def Measuring(card, phase, start_count_down = 0, length_count_down = 10, ref_mea
   else :
     print('[%s-N] %s, ' % (phase, card.UV), end=' ')
 
-  print(' [REF] %7.2f' %ref_measure.avg)
+  if ref_measure :
+    print(' [REF] %7.2f' %ref_measure.avg)
 
 def CalCmd(args, port, throughput_limit) :
   """
