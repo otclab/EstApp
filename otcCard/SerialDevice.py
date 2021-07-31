@@ -55,7 +55,9 @@ try :
 except ImportError :
   isAndroid = False
 
+print("pre andrid")
 if not isAndroid :
+  print("not isAndroid")
   # Se trata de un sistema operativo estándar, el soporte del puerto serie es
   # provisto por el módulo PySerial :
   import serial
@@ -83,46 +85,47 @@ if not isAndroid :
         raise OTCProtocolError('El puerto %s no responde.' % self.port, e, self)
 
 
-  def com_list() :
-    u"""
-    Devuelve una lista con los (nombres de los) puertos serie disponibles en
-    el sistema.
-    """
-    #[TO DO] : Eliminar de la lista los puertos no disponibles.
-    #          La lista de puertos es realmente la de los existentes, incluyendo
-    #          aquellos que no están disponibles, i.e que están siendo utilizados
-    #          por otra aplicación.
-    import os
-    import _winreg
- 
-    port_list = []
- 
-    # Existe un defecto en la función 'list_ports.comports' por la cual no
-    # lista los puertos USB en Windows8 (y posiblemente 7) del módulo serial.
-    # tools, como solución se obtiene la lista de puertos del registro de
-    # windows directamente.
-    if os.name == 'nt' :
-       path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
- 
-       try:
-          key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, path)
-          i = 0
-          port_list = {}
-          while 1 :
-             val = _winreg.EnumValue(key, i)
-             port_list[str(val[0])] = str(val[1])
-             i = i+1
- 
-       except WindowsError:
-          pass
- 
-    else :
-       com_ports = serial.tools.list_ports.comports()
-       for i in com_ports :
-          port_list += [i[0]]
- 
-    return port_list
-
+  
+    def com_list() :
+      u"""
+      Devuelve una lista con los (nombres de los) puertos serie disponibles en
+      el sistema.
+      """
+      #[TO DO] : Eliminar de la lista los puertos no disponibles.
+      #          La lista de puertos es realmente la de los existentes, incluyendo
+      #          aquellos que no están disponibles, i.e que están siendo utilizados
+      #          por otra aplicación.
+      import os
+      import winreg
+   
+      port_list = []
+   
+      # Existe un defecto en la función 'list_ports.comports' por la cual no
+      # lista los puertos USB en Windows8 (y posiblemente 7) del módulo serial.
+      # tools, como solución se obtiene la lista de puertos del registro de
+      # windows directamente.
+      if os.name == 'nt' :
+         path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
+   
+         try:
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
+            i = 0
+            port_list = {}
+            while 1 :
+               val = winreg.EnumValue(key, i)
+               port_list[str(val[0])] = str(val[1])
+               i = i+1
+   
+         except WindowsError:
+            pass
+   
+      else :
+         com_ports = serial.tools.list_ports.comports()
+         for i in com_ports :
+            port_list += [i[0]]
+   
+      return port_list
+  
 else :
   import RN42Serial
 
