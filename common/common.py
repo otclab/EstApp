@@ -81,9 +81,12 @@ def parsePort(args, required = []) :
 
     if len(ports) == 0 :
       print('Error : El Sistema no tiene puertos serie.')
+      sys.exit()
 
     elif len(ports) == 1 :
-      return (ports[0], args)
+        
+        print('Seleccionando el único puerto serie : {:s}'.format())
+        return (ports[list(ports)[0]], args)
 
     else  :
        def porttype(p) :
