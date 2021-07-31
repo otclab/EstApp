@@ -55,9 +55,7 @@ try :
 except ImportError :
   isAndroid = False
 
-print("pre andrid")
 if not isAndroid :
-  print("not isAndroid")
   # Se trata de un sistema operativo estándar, el soporte del puerto serie es
   # provisto por el módulo PySerial :
   import serial

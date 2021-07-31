@@ -76,7 +76,6 @@ def parsePort(args, required = []) :
     if (len(args) < 2) or (not args[1] in required) :
       return (None, args)
 
-    print('Seleccione el puerto serie :')
     ports = com_list()
 
     if len(ports) == 0 :
@@ -85,7 +84,7 @@ def parsePort(args, required = []) :
 
     elif len(ports) == 1 :
         
-        print('Seleccionando el único puerto serie : {:s}'.format())
+        print('Seleccionando el único puerto serie : {:s}'.format(ports[list(ports)[0]]))
         return (ports[list(ports)[0]], args)
 
     else  :
@@ -96,6 +95,8 @@ def parsePort(args, required = []) :
             if p.startswith(t) : return types[t]
          return p
 
+       print('Seleccione el puerto serie :')
+      
        print('\n'.join(['   [%d] -> %-8s / %s'%
                           (i+1, ports[k], porttype(k.split('\\')[-1]))
                                            for i,k in enumerate(ports.keys())]))
