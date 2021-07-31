@@ -515,8 +515,10 @@ class EstCard1V0(OTCCard) :
                'EstCard 27V0' : 6  , 'EstCard 2V5'      : 10, 'EstCard 2V5x' : 10,
                'EstCard 21V0' : 4  , 'EstCard 10V0'     : 6 , 'EstCard 22V0' : 10,
                'EstCard 31V0' : 9  , 'EstCard 23V2'     : 10, 'EstCard 5V3'  :  5,
-               'EstCard 5V5'  : 5  , 'EstCard 5V7'      : 5 , 'EstCard 33V0' :  7, 
-               'EstCard 16V7' : 6  , 'EstCard 28V0'     : 9 ,}
+               'EstCard 5V5'  : 5  , 'EstCard 5V7'      : 5 , 'EstCard 33V0' :  7,
+               'EstCard 16V7' : 6  , 'EstCard 28V0'     : 9 , 'EstCard 16V6' :  5,
+               'EstCard 33V1' : 7  , 'EstMAQ-I5S'       : 5 , 'EstCard 5V9'  :  5,
+               'EstMAQ-I7M'   : 7  , 'EstMAQ-I5M'       : 5 , 'EstMAQ-I6S'   :  6}
 
   # Contenido total de la EEPROM :
   _eepromLow  = CardParameter(eepromAdr, '<128B', 'Mitad baja de la EEPROM')
