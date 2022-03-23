@@ -134,15 +134,11 @@ class Phase(object) :
   def __init__(self, card, name) :
     self.card  = card
     self.name  = name
-    print("GAIN-> ", self.gain)
-    print("SCALE -> ", self.card.scale)
-    print("GAIN_NOM ->", EstCard1V0.GAIN_NOM)
 
     try :
         self.stats = Measure_Statistics((self.card.scale /
                                      math.sqrt(self.gain/EstCard1V0.GAIN_NOM)))
     except :
-        print('EXCEPTION')
         self.stats = Measure_Statistics((self.card.scale /
                                      math.sqrt(57000/EstCard1V0.GAIN_NOM)))
 
