@@ -7,14 +7,14 @@ from common import openCard
 
 def TimersCmd(args, port, throughput_limit) :
   """
-    EstParser : Tiempos de Encendido y Corte
+    EstApp : Tiempos de Encendido y Corte
     ========================================
 
     Uso :
-       >> EstParser.py -t [?]
-       >> EstParser.py -t [ off | corte | apagado | on | encendido ]
-       >> EstParser.py -t tipo tiempo [por] [subtension | sobretension]
-       >> EstParser.py -t tipo tiempo [por] tipo_evento Valor_del_Tiempo
+       >> EstApp.py -t [?]
+       >> EstApp.py -t [ off | corte | apagado | on | encendido ]
+       >> EstApp.py -t tipo tiempo [por] [subtension | sobretension]
+       >> EstApp.py -t tipo tiempo [por] tipo_evento Valor_del_Tiempo
 
 
     Permite leer los tiempos de corte y encendido por y desde sobretensión y

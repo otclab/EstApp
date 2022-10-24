@@ -65,7 +65,7 @@ def MonCmd(args, port, throughput_limit) :
     ===========================
 
     Uso :
-      >> EstParser.py -mon [log_file]
+      >> EstApp.py -mon [log_file]
 
     Presenta en la consola la medición y las estadísticas básicas de las
     tensiones LN y UV, a una taza de 1 seg.

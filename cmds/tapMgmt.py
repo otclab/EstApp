@@ -10,11 +10,11 @@ from common import openCard
 
 def SetTapCmd(port, throughput_limit) :
   """
-    EstParser : Operación Manual de los Taps
+    EstApp : Operación Manual de los Taps
     ========================================
 
     Uso :
-       >> EstParser.py -manual
+       >> EstApp.py -manual
 
     La tarjeta es puesta en el modo de control remoto (deja de regular), perma-
     neciendo con el Tap activo al momento de la invocación de este comando.

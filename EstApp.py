@@ -11,7 +11,7 @@ general_help = u"""
   Uso :
     - Lectura o Modificación de la Escala de Medición :
           >  EstApp.py -s [? | Valor]
-          
+
     - Lectura o Modificación de las Ganancias Fase-Neutro :
           >>  EstApp.py -g [?]
           >>  EstApp.py [-gR | -gS | -gT ] [? | Valor]
@@ -22,13 +22,13 @@ general_help = u"""
 
     - Lectura de las mediciones de Tensión  :
           >> EstApp.py -mon
-          >> EstParser,py -mon cycle [filename]
-          >> EstParser,py -mon sample [input|output] [log_file]
+          >> EstApp,py -mon cycle [filename]
+          >> EstApp,py -mon sample [input|output] [log_file]
 
     - Modos de Operación :
           >> EstApp.py -m [?]
           >> EstApp.py -m nombre_atributo [ ? | valor_atributo ]
-         
+
     - Lectura o Modificación de los Umbrales de los Taps :
           >> EstApp.py -u [?]
           >> EstApp.py -u total Nuevo_Valor_del_Numero_de_Cambios
@@ -39,7 +39,7 @@ general_help = u"""
           >> EstApp.py -t [ off | corte | apagado | on | encendido ]
           >> EstApp.py -t tipo tiempo [por] [subtension | sobretension]
           >> EstApp.py -t tipo tiempo [por] tipo_evento Valor_del_Tiemo
-    
+
     - Respaldo de la Configuración :
           >> EstApp.py -b [-mch | -intelhex | -source |
                                               -dump | -bin [<bacup_filename>]]

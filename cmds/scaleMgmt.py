@@ -7,7 +7,7 @@ from common import openCard
 
 def ScaleCmd(args, port, throughput_limit) :
   u'''
-  EstParser : Escala de Medición de las Tensiones
+  EstApp : Escala de Medición de las Tensiones
   ==============================================
 
   La escala de tensión depende la resistencias asociadas a las entrada de
@@ -23,10 +23,10 @@ def ScaleCmd(args, port, throughput_limit) :
   2/3 para todos los modelos excepto para el EstCard 23V0 en que es 1.
 
   El valor programado de la escala se obtiene con la orden
-        >> EstParser.py -s
+        >> EstApp.py -s
 
   y se modifica con la orden :
-        >> EstParser.py -s nuevo_valor_de_la_escala.
+        >> EstApp.py -s nuevo_valor_de_la_escala.
   '''
 
   card = openCard(port, throughput_limit)

@@ -10,23 +10,23 @@ def ThresholdCmd(args, port, throughput_limit) :
     EstApp : Umbrales de Tensión de los Taps
     ===========================================
 
-    Tiene tres formas :
+    Tiene cuatro formas de invocarlo :
       (a) Presenta una tabla con la lista de los taps activos :
 
-          >> EstParser.py -u
+          >> EstApp.py -u
           o
-          >> EstParser.py -u  ?
+          >> EstApp.py -u  ?
 
       (b) Modifica el número de cambios, al valor definido por
           Nuevo_Valor_del_Numero_de_Cambios :
 
-          >> EstParser.py -u total Nuevo_Valor_del_Numero_de_Cambios
+          >> EstApp.py -u total Nuevo_Valor_del_Numero_de_Cambios
 
-      (b) Modifica el valor de un umbral, cuyo número de orden de menor a mayor
+      (c) Modifica el valor de un umbral, cuyo número de orden de menor a mayor
           es Nro_de_Orden y cuya posición superior o inferior es indicada por
           Pos con el valor dado por Nuevo_Valor_del_Umbral :
 
-          >> EstParser.py -u  Nro_de_Orden  Pos  Nuevo_Valor_del_Umbral
+          >> EstApp.py -u  Nro_de_Orden  Pos  Nuevo_Valor_del_Umbral
 
           El número de orden se indica en forma abreviada, es decir puede ser
           '1ro', '2do', '3ro', '4to', '5to', '6to', '7mo', '8vo', '9no', '10mo',
@@ -35,6 +35,18 @@ def ThresholdCmd(args, port, throughput_limit) :
           La posición se indica por las palabras 'sup' o 'superior' para el
           valor del umbral de cambio al siguiente tap e 'inf' o'inferior' para
           el valor del umbral al tap anterior.
+
+      (d) Modifica los umbrales definidos en un archivo de una hoja de calculo
+          Excel.
+
+          >> EstApp.py -u Nombre_del_archivo
+
+          Si el nombre del archivo contiene espacios deben incluirse
+          comillas (dobles) al inicio y final. Los umbrales de cada tap
+          se definen a partir de la segunda fila, en la segunda columna (B) el
+          umbral superior y en la tercera (C) el inferior. :
+
+
   """
 
   num_tap = ['1ro', '2do', '3ro', '4to', '5to', '6to',
