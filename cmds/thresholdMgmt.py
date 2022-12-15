@@ -130,7 +130,6 @@ def ThresholdCmd(args, port, throughput_limit) :
                                getattr(card.threshold[tap_idx], args[3][:3])))
 
   elif args[2] == '-w' :
-    print(f'args : {args}')
     if len(args) > 3 :
       write_xls(card, args[3])
 
@@ -219,8 +218,6 @@ def read_xls(card, xls_name) :
 
   card.threshold.len = len(threshold_list)
 
-  print(f'Los umbrales se guardaron en \'{xls_name}\'')
-
 
 def write_xls(card, xls_name) :
   accounting_format = '_ * #,##0.00_ ;_ * \\-#,##0.00_ ;_ * "-"??_ ;_ @_ '
@@ -253,8 +250,7 @@ def write_xls(card, xls_name) :
     ws[f'B{n+2}'].border = Border(top=thin , left=thick, right=thin , bottom=bottom)
     ws[f'C{n+2}'].border = Border(top=thin , left=thin , right=thick, bottom=bottom)
 
-
-
   wb.save(xls_name)
 
+  print(f'Los umbrales se guardaron en \'{xls_name}\'')
 
