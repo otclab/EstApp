@@ -5,6 +5,9 @@
 
 # TO DO : Completar la Ayuda de cada orden :
 
+from cmds import *
+from estCard import *
+from common import *
 general_help = u"""
   Aplicación para la configuración de las Tarjetas de control de Estabilizador EstCard.
 
@@ -92,165 +95,161 @@ general_help = u"""
 
 """
 
-from common import *
-from estCard import *
-from cmds import *
 
+def main(args):
+    # Reconoce la especificación de la simulación del dispositivo por medio de
+    # Proteus, lo retira de la lista de argumentos y prepara throughput_limit
+    # para limitar el volumen de datos :
+    if '-proteus' in args:
+        i = args.index(u'-proteus')
+        args.pop(i)
+        throughput_limit = True
+    else:
+        throughput_limit = False
 
-def main(args) :
-  # Reconoce la especificación de la simulación del dispositivo por medio de
-  # Proteus, lo retira de la lista de argumentos y prepara throughput_limit
-  # para limitar el volumen de datos :
-  if '-proteus' in args :
-    i = args.index(u'-proteus')
-    args.pop(i)
-    throughput_limit = True
-  else :
-    throughput_limit = False
+    # En Windows y Linux, la especificación del puerto es obligatoria para
+    # ciertas opciones (y por lo tanto parsePort() debe interrogar al usuario :
+    port, args = parsePort(args, ['-u', '-t', u'-g', u'-s'])
 
-  # En Windows y Linux, la especificación del puerto es obligatoria para
-  # ciertas opciones (y por lo tanto parsePort() debe interrogar al usuario :
-  port, args = parsePort(args, ['-u', '-t', u'-g', u'-s'])
+    # Inicializa el sistema de reporte :
+    report('EstCard')
+    logger = report.getLogger()
 
-  # Inicializa el sistema de reporte :
-  report('EstCard')
-  logger = report.getLogger()
-
-  if len(args) == 1:
-    print('Use "EstApp.py -h|-help|help|ayuda|sos" para ayuda.\n')
-    sys.exit(1)
-
-  if args[1] in ['-h', '-help', 'help', 'ayuda', 'sos']:
-    if len(args) == 2:
-      # print version.version_doc
-      print(general_help)
-      sys.exit(0)
-
-    topic = args[2]
-    if (len(topic) == 2) and (topic[0] == '-'): topic = topic[1:]
-
-    if topic in ['cal', 'calibration', 'calibracion']:
-      print((CalCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['b', 'respaldo', 'backup']:
-      print((BackupCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['g', 'gain', 'ganancia']:
-      print((GainCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['m', 'mode', 'modo']:
-      print((ModeCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['s', 'scale', 'escala']:
-      print((scaleCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['manual', 'settap']:
-      print((SetTapCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['u', 'umbral', 'umbrales', 'threshold', 'thresholds']:
-      print((ThresholdCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['t', 'timers', 'tiempo', 'tiempos', 'temporizacion']:
-      print((TimersCmd.__doc__))
-      sys.exit(0)
-
-    if topic in ['mon', 'monitor', 'monitoreo']:
-      print((MonCmd.__doc__))
-      sys, exit(0)
-
-    if topic in ['o', 'orden']:
-      print((OrderingTapCmd.__doc__))
-      sys, exit(0)
-
-    print('Error : No existe el tema de ayuda.')
-    sys.exit(1)
-
-
-  # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  # Lectura de la EEPROM y generación de su respaldo :
-  elif args[1] == '-b' :
-    BackupCmd(args, port, throughput_limit)
-
-  # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  # TODO : Medición de la Relación de Taps :
-  elif args[1] in [u'-taprel'] :
-    card = openCard(port, throughput_limit)
-    card.EnterRemoteMode()
-
-    for tap in range(1, card.get('Taps Utilizados') + 1) :
-      # Se activa el tap a medir :
-      card.set('Tap Activo', tap)
-      print('Tap : %d' %tap)
-
-      # La medición de la entrada y salida :
-      try :
-        MeasureTask(card)
-      except Exception as e :
-        print('Error - La medición aborto')
+    if len(args) == 1:
+        print('Use "EstApp.py -h|-help|help|ayuda|sos" para ayuda.\n')
         sys.exit(1)
 
+    if args[1] in ['-h', '-help', 'help', 'ayuda', 'sos']:
+        if len(args) == 2:
+            # print version.version_doc
+            print(general_help)
+            sys.exit(0)
 
-  # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  # Operación Manual de los Taps:
-  elif args[1] in [u'-manual'] :
-    SetTapCmd(port, throughput_limit)
+        topic = args[2]
+        if (len(topic) == 2) and (topic[0] == '-'):
+            topic = topic[1:]
 
-  # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  # Calibración:
-  elif args[1] in [u'-cal', u'-calL', u'-calU', u'-calV'] :
-    CalCmd(args, port, throughput_limit)
+        if topic in ['cal', 'calibration', 'calibracion']:
+            print((CalCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] in [u'-g', u'-gL', u'-gU', u'-gV'] :
-    GainCmd(args, port, throughput_limit)
+        if topic in ['b', 'respaldo', 'backup']:
+            print((BackupCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == u'-m' :
-    ModeCmd(args, port, throughput_limit)
+        if topic in ['g', 'gain', 'ganancia']:
+            print((GainCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == '-t' :
-    TimersCmd(args, port, throughput_limit)
+        if topic in ['m', 'mode', 'modo']:
+            print((ModeCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == '-s' :
-    ScaleCmd(args, port, throughput_limit)
+        if topic in ['s', 'scale', 'escala']:
+            print((ScaleCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == '-u' :
-    ThresholdCmd(args, port, throughput_limit)
+        if topic in ['manual', 'settap']:
+            print((SetTapCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == u'-mon' :
-    card = MonCmd(args, port, throughput_limit)
+        if topic in ['u', 'umbral', 'umbrales', 'threshold', 'thresholds']:
+            print((ThresholdCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == '-test' :
-    TestCmd(args, port, throughput_limit)
+        if topic in ['t', 'timers', 'tiempo', 'tiempos', 'temporizacion']:
+            print((TimersCmd.__doc__))
+            sys.exit(0)
 
-  elif args[1] == '-o' :
-    OrderingTapCmd(args, port, throughput_limit)
+        if topic in ['mon', 'monitor', 'monitoreo']:
+            print((MonCmd.__doc__))
+            sys, exit(0)
 
-  else:
-    print("'{:s}' orden desconocida.".format(args[1]))
+        if topic in ['o', 'orden']:
+            print((OrderingTapCmd.__doc__))
+            sys, exit(0)
 
-if __name__ == '__main__' :
-  # Las excepciones causadas por errores de comunicación (OTCProtocolError) se
-  # se reportan en la consola directamente por el sistema de reporte (logger),
-  # por lo que se atrapan para impedir el reporte estándar de python.
-  #
-  # En general las excepciones restantes (previstas por un mal formato de
-  # entrada) son atrapadas en main e inician el procedimiento de limpieza, para
-  # finalmente reportar su ocurrencia con un mensaje apropiado al contexto,,
-  # evitando mostrar el mensaje de diagnostico estándar de Python.
-  #
-  # Los errores causados por un defecto en el programa, no son atrapadas y
-  # producen el mensaje de diagnóstico estándar.
-  try :
-    main(sys.argv)
-  except OTCProtocolError as e :
-    pass
+        print('Error : No existe el tema de ayuda.')
+        sys.exit(1)
 
-  finally :
-    #if card is not None : card.close()
-    pass
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Lectura de la EEPROM y generación de su respaldo :
+    elif args[1] == '-b':
+        BackupCmd(args, port, throughput_limit)
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # TODO : Medición de la Relación de Taps :
+    elif args[1] in [u'-taprel']:
+        card = openCard(port, throughput_limit)
+        card.EnterRemoteMode()
+
+        for tap in range(1, card.get('Taps Utilizados') + 1):
+            # Se activa el tap a medir :
+            card.set('Tap Activo', tap)
+            print('Tap : %d' % tap)
+
+            # La medición de la entrada y salida :
+            try:
+                MeasureTask(card)
+            except Exception as e:
+                print('Error - La medición aborto')
+                sys.exit(1)
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Operación Manual de los Taps:
+    elif args[1] in [u'-manual']:
+        SetTapCmd(port, throughput_limit)
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Calibración:
+    elif args[1] in [u'-cal', u'-calL', u'-calU', u'-calV']:
+        CalCmd(args, port, throughput_limit)
+
+    elif args[1] in [u'-g', u'-gL', u'-gU', u'-gV']:
+        GainCmd(args, port, throughput_limit)
+
+    elif args[1] == u'-m':
+        ModeCmd(args, port, throughput_limit)
+
+    elif args[1] == '-t':
+        TimersCmd(args, port, throughput_limit)
+
+    elif args[1] == '-s':
+        ScaleCmd(args, port, throughput_limit)
+
+    elif args[1] == '-u':
+        ThresholdCmd(args, port, throughput_limit)
+
+    elif args[1] == u'-mon':
+        card = MonCmd(args, port, throughput_limit)
+
+    elif args[1] == '-test':
+        TestCmd(args, port, throughput_limit)
+
+    elif args[1] == '-o':
+        OrderingTapCmd(args, port, throughput_limit)
+
+    else:
+        print("'{:s}' orden desconocida.".format(args[1]))
+
+
+if __name__ == '__main__':
+    # Las excepciones causadas por errores de comunicación (OTCProtocolError) se
+    # se reportan en la consola directamente por el sistema de reporte (logger),
+    # por lo que se atrapan para impedir el reporte estándar de python.
+    #
+    # En general las excepciones restantes (previstas por un mal formato de
+    # entrada) son atrapadas en main e inician el procedimiento de limpieza, para
+    # finalmente reportar su ocurrencia con un mensaje apropiado al contexto,,
+    # evitando mostrar el mensaje de diagnostico estándar de Python.
+    #
+    # Los errores causados por un defecto en el programa, no son atrapadas y
+    # producen el mensaje de diagnóstico estándar.
+    try:
+        main(sys.argv)
+    except OTCProtocolError as e:
+        pass
+
+    finally:
+        # if card is not None : card.close()
+        pass

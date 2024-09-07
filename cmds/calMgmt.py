@@ -161,7 +161,7 @@ def CalCmd(args, port, throughput_limit) :
     debe ir como parámetro final y solo se aceptan direcciones IP numéricas.
     A la fecha solo el multimetro SDM3055 es soportado.
 
-    En el caso de utilizarse un instrumento de referecnia se puede utilizar la
+    En el caso de utilizarse un instrumento de referencia se puede utilizar la
     opción -Y, para saltarse la autorización de la calibración.
   """
 
@@ -252,7 +252,7 @@ def CalCmd(args, port, throughput_limit) :
 
   except ValueError as e :
     print('Error - No se puede continuar con la calibración.')
-    print('%s' %e.message)
+    print('%s' %e.args)
     card.close()
     sys.exit(1)
 

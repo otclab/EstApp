@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import sys
 from otcCard import *
 from estCard.EstCard import *
 
 
-
-def openCard(port, throughput_limit = False, report = True) :
+def openCard(port, throughput_limit=False, report=True):
     """
     Inicia la conexión con la tarjeta conectada al puerto port, lee la identifi-
     ción de la tarjeta y devuelve un objeto de la clase EstCard.
@@ -14,28 +14,28 @@ def openCard(port, throughput_limit = False, report = True) :
     Por defecto presenta la identificación de la tarjeta en la consola, acción
     que es controlada por report.
     """
-    try :
+    try:
         print("Conectando ...", end='\r')
         card = EstCard(port, throughput_limit)
 
-        if report :
+        if report:
             print("Conectado a :")
-            print("      Hardware : %s" %card.id['hardware_model'   ])
-            print("       Versión : %s" %card.id['hardware_version' ])
-            print("      Software : %s" %card.id['software_kernel'  ])
-            print("       versión : %s" %card.id['software_release' ])
-            print("      revisión : %s" %card.id['software_revision'])
+            print("      Hardware : %s" % card.id['hardware_model'])
+            print("       Versión : %s" % card.id['hardware_version'])
+            print("      Software : %s" % card.id['software_kernel'])
+            print("       versión : %s" % card.id['software_release'])
+            print("      revisión : %s" % card.id['software_revision'])
             print("\n")
 
-        if not card.isKnown :
+        if not card.isKnown:
             ans = input('El modelo es desconocido!, ¿Se Continua? [S/N] ')
 
-            if ans.lower() in ['n', 'no'] :
+            if ans.lower() in ['n', 'no']:
                 sys.exit(0)
 
         return card
 
-    except OTCProtocolError :
+    except OTCProtocolError:
         sys.exit(1)
 
 
@@ -46,7 +46,7 @@ def openCard(port, throughput_limit = False, report = True) :
 # Si no se encuentra la especificación y la opción principal se encuentra en el
 # argumento 'required', se interroga al usuario para que seleccione el puerto,
 # de la lista puertos disponibles en el sistema,
-def parsePort(args, required = []) :
+def parsePort(args, required=[]):
     """
     Reconoce la especificación del puerto en args (importado de sys.args), de-
     vuelve una tupla cuyo primer elemento es el nombre del puerto y el segundo
@@ -62,60 +62,66 @@ def parsePort(args, required = []) :
     Si la especificación del puerto no es requerida (y no se especifica en la
     linea de ordenes args) se le asigna None al devolverlo.
     """
-    try :
-        if args[1][0:4] == u'-COM' :
+    try:
+        if args[1][0:4] == u'-COM':
             port = args.pop(1)[1:]
-        else :
+        else:
             i = args.index(u'-port')
             args.pop(i)
             port = args.pop(i).upper()
 
         return (port, args)
 
-    except :
+    except:
         pass
 
-    if (len(args) < 2) or (not args[1] in required) :
+    if (len(args) < 2) or (not args[1] in required):
         return (None, args)
 
     ports = com_list()
 
-    if len(ports) == 0 :
+    if len(ports) == 0:
         print('Error : El Sistema no tiene puertos serie.')
         sys.exit()
 
-    if len(ports) == 1 :
-        print('Seleccionando el único puerto serie : {:s}'.format(ports[list(ports)[0]]))
+    if len(ports) == 1:
+        print('Seleccionando el único puerto serie : {:s}'.format(
+            ports[list(ports)[0]]))
         return (ports[list(ports)[0]], args)
 
-    def porttype(p) :
-        types = {'com0com' : 'Emulador Com0Com',
-                'USBSER' : 'Adaptador USB' , 'BthModem': 'Adaptador Bluetooth'}
-        for t in types.keys() :
-            if p.startswith(t) : return types[t]
+    def porttype(p):
+        types = {'com0com': 'Emulador Com0Com',
+                 'USBSER': 'Adaptador USB', 'BthModem': 'Adaptador Bluetooth'}
+        for t in types.keys():
+            if p.startswith(t):
+                return types[t]
         return p
 
     print('Seleccione el puerto serie :')
 
-    print('\n'.join(['   [%d] -> %-8s / %s'%
-                (i+1, ports[k], porttype(k.split('\\')[-1]))
-                                      for i,k in enumerate(ports.keys())]))
+    print('\n'.join(['   [%d] -> %-8s / %s' %
+                     (i+1, ports[k], porttype(k.split('\\')[-1]))
+                     for i, k in enumerate(ports.keys())]))
 
-    while True :
-        try :
+    while True:
+        try:
             ans = input('\nIndice del puerto serie ? ')
-            ans = int(ans)
-            if (ans >= 0) and (ans < len(ports)) :
-                break
-        except :
-            pass
+        except KeyboardInterrupt:
+            ans = 'x'
+            print('')
 
-        if ans in ['x', 'X'] :
+        if ans in ['x', 'X']:
             print('Operación abortada a petición')
             sys.exit(1)
+
+        try:
+            ans = int(ans)
+            if (ans > 0) and (ans <= len(ports)):
+                break
+        except ValueError:
+            pass
 
         print('No es una selección válida. Intente de nuevo.')
         print('x si desea salir.')
 
-    return (ports[list(ports.keys())[ans]], args)
-
+    return (ports[list(ports.keys())[ans-1]], args)
